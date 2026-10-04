@@ -13,7 +13,7 @@ Portrait survivors-like for iPhone (one thumb moves; an optional second thumb dr
 - Units were enlarged for readability (camera zoom 1.0, bigger sprites) on 2026-10-04.
 - Enemy AI (2026-10-04, after build 2 feedback): enemies only chase what they can see, lead and flank a moving hunter, and give up (recycle) when they lose you; gesture recognizer v2 (thumb tolerances in mm, template-matched shapes).
 - **On TestFlight:** v0.1.0 build 1, uploaded 2026-10-04 (App Store Connect app `6819005826`). The owner is in the internal "Team (Expo)" group, which gets every new build automatically. Not submitted for App Store review; no store listing yet.
-- **On TestFlight: v0.1.0 build 2** (uploaded 2026-10-04, commit `b20b9f7`) has the gesture layer, new weapons and Musou removal. Build 1 predates them.
+- **On TestFlight: v0.1.0 build 3** (uploaded 2026-10-04, commit `85594a8`): gesture layer, six weapons, no Musou, enemy sight/intercept/flank AI, gesture recognizer v2. Build 2 had the first gesture recognizer (owner: triangles and tap-and-hold failed on device); build 1 predates gestures.
 - **Not yet played on a real iPhone.** Balance comes from bot telemetry (`systems/bot_input.gd`), not human playtests. Device perf is unmeasured; the debug build shows an fps / enemy-count line above the XP bar.
 - **Known gaps:** no audio; placeholder procedural art (monster is stacked shapes; all six weapons share the hunter sprite); no human balance pass; gesture recognizer thresholds tuned on synthetic strokes only, not real thumbs.
 
@@ -22,7 +22,7 @@ Portrait survivors-like for iPhone (one thumb moves; an optional second thumb dr
 Last session (2026-10-04, second half) added the two-thumb gesture layer, the Loadout screen, four weapons (Bulwark, Hand Cannon, Twin Fangs, Assault Rifle), removed the Musou attack, enlarged units, and fixed Ironhorn wedging between rocks. Earlier the same day: first TestFlight upload (build 1, pre-gestures).
 
 Open, in rough priority order:
-1. **Playtest build 2 on device**: gesture recognition with real thumbs (`gestures.*` thresholds), stick/gesture halves and safe-area layout, perfect-counter timing (`gestures.perfect_window`), feel of all six weapons, and fps / enemy count at swarm peak (the 1,500-enemy target has never run on an iPhone).
+1. **Playtest build 3 on device** (does Flame Wake still feel OP? do shapes and holds register now?): gesture recognition with real thumbs (`gestures.*` thresholds), stick/gesture halves and safe-area layout, perfect-counter timing (`gestures.perfect_window`), feel of all six weapons, and fps / enemy count at swarm peak (the 1,500-enemy target has never run on an iPhone).
 2. **Balance from human play**: start with the top-5 knobs in `README.md` → Tuning (`data/tuning.json`). Bot telemetry for the new weapons is in DECISIONS.md / the smoke log only.
 3. **Audio** (none exists).
 4. **Real art** via `art/manifest.json` (placeholders are procedural).

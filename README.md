@@ -118,6 +118,7 @@ Same Mac build server and pipeline as wildbound. `scripts/ship-ios-godot.sh` (al
 - **Credentials** live on EAS. Download a local copy once (and after any renewal): `cd eas && npx eas-cli@24.10.0 credentials -p ios` → production → credentials.json → Download. That writes `eas/credentials.json` + `eas/credentials/` (gitignored).
 - Flags: `--no-submit`, `--unsigned` (no credentials; proves Godot + Xcode compile), `--sync-local` (build the uncommitted tree; test only), `--build-number N`.
 - **History** (newest first):
+  - 2026-10-04: v0.1.0 build 3 (local Mac build via `scripts/ship-ios-godot.sh`, commit `85594a8`, submission `161c7c18-c391-4d2d-9066-b3ddf1bed321`) uploaded to TestFlight. Enemy sight/intercept/flank AI and gesture recognizer v2 (mm tolerances, template-matched shapes).
   - 2026-10-04: v0.1.0 build 2 (local Mac build via `scripts/ship-ios-godot.sh`, commit `b20b9f7`, submission `4e534cab-288e-4f2d-9eab-d93d71c119d7`) uploaded to TestFlight. First build with two-thumb gestures, the Loadout screen, the four new weapons, Musou removed and bigger units.
   - 2026-10-04: v0.1.0 build 1 (local Mac build via `scripts/ship-ios-godot.sh`, commit `a22b9f0`, submission `88435005`) uploaded to TestFlight. First upload: `eas submit` registered the bundle ID, created the App Store Connect app (ID `6819005826`, now pinned as `ascAppId` in `eas/eas.json`) and the "Team (Expo)" TestFlight group.
   - 2026-10-04: pipeline set up; unsigned Mac build verified (Godot export + `xcodebuild archive` OK).
