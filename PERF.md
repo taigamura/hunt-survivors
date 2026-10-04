@@ -47,3 +47,5 @@ godot --headless --path . --fixed-fps 60 res://scenes/benchmark.tscn
 ## Per-weapon cost (2026-10-04, after the gesture/new-weapon update)
 
 `benchmark.tscn -- weapon=<id>` swaps the benchmark's main weapon (default `dual_blades`). At 1,500 enemies on the Ryzen 7 3700X dev box (under background load), the weapons slice of the frame is small for every weapon: Bulwark 0.03 ms, Hand Cannon 0.04, Dual Blades 0.04, Twin Fangs 0.10, Assault Rifle 0.16 (vs ~4.6 ms for the swarm step). Guns are hitscan (`HuntContext.shoot` = one `query_line` + a partial sort by distance), and they only run range queries when a round is due. Gesture moves are not exercised by the benchmark; the heaviest (Gun Kata: 8 rounds every 0.1 s) is about 8 line queries on its firing frames.
+
+Enemy sight/lead/flank AI (same day) adds about 0.5 ms to the swarm step at 1,500 enemies on the dev box (sim avg 5.1 → 5.8 ms, under background load): a per-enemy goal point (lead + flank offset) and an extra square root. Still under the 6 ms budget here, but the headroom is thinner; check device fps at swarm peak.

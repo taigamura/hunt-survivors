@@ -102,3 +102,60 @@ func test_far_enemies_despawn() -> void:
 	es.step(1.0 / 60.0)
 	assert_false(es.is_alive(far))
 	assert_true(es.is_alive(near))
+
+
+func _steps(es: EnemySystem, seconds: float) -> void:
+	for k in int(seconds * 60.0):
+		es.step(1.0 / 60.0)
+
+
+func test_out_of_sight_enemies_search_then_give_up() -> void:
+	var es := _system(10)
+	var i := es.spawn(EnemySystem.T_GRUNT, Vector2(500, 0))  # in sight: knows where you are
+	es.target = Vector2(0, 1300)  # the hunter runs off, far out of sight
+	_steps(es, 1.0)
+	var moved := es.pos[i] - Vector2(500, 0)
+	assert_lt(moved.y, 20.0, "doesn't track a hunter it can't see")
+	assert_lt(moved.x, -40.0, "heads for where it last saw the hunter")
+	var lost_before := es.lost_despawns
+	_steps(es, 12.0)
+	assert_false(es.is_alive(i), "gave up the search and was recycled")
+	assert_eq(es.lost_despawns, lost_before + 1)
+
+
+func test_in_sight_enemies_track_you() -> void:
+	var es := _system(10)
+	var i := es.spawn(EnemySystem.T_GRUNT, Vector2(500, 0))
+	es.target = Vector2(0, 400)  # moved, but still within sight
+	var d0 := es.pos[i].distance_to(es.target)
+	_steps(es, 1.0)
+	assert_lt(es.pos[i].distance_to(es.target), d0 - 50.0, "closes in on a hunter it can see")
+	assert_true(es.is_alive(i))
+
+
+func test_chasers_flank_and_lead_a_moving_hunter() -> void:
+	var es := _system(10)
+	es.target = Vector2.ZERO
+	es.target_vel = Vector2(215, 0)  # running right
+	# two chasers directly behind, flanking to opposite sides
+	var a := es.spawn(EnemySystem.T_GRUNT, Vector2(-400, 0))
+	var b := es.spawn(EnemySystem.T_GRUNT, Vector2(-400, 2))
+	es.flank[a] = 1.0
+	es.flank[b] = -1.0
+	es.wob_c[a] = 1.0
+	es.wob_s[a] = 0.0
+	es.wob_c[b] = 1.0
+	es.wob_s[b] = 0.0
+	_steps(es, 0.5)
+	assert_gt(absf(es.pos[a].y - es.pos[b].y), 25.0, "chasers spread out instead of filing behind")
+	assert_lt(es.pos[a].y * es.pos[b].y, -25.0, "to opposite sides of the hunter's path")
+	# an enemy beside the path aims ahead of the hunter, not at it
+	var es2 := _system(10)
+	es2.target = Vector2.ZERO
+	es2.target_vel = Vector2(215, 0)
+	var c := es2.spawn(EnemySystem.T_GRUNT, Vector2(0, -400))
+	es2.flank[c] = 0.0
+	es2.wob_c[c] = 1.0
+	es2.wob_s[c] = 0.0
+	_steps(es2, 0.5)
+	assert_gt(es2.pos[c].x, 10.0, "cuts ahead to intercept")

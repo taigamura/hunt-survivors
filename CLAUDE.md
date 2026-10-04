@@ -11,6 +11,7 @@ Portrait survivors-like for iPhone (one thumb moves; an optional second thumb dr
 - **Musou attack/gauge removed** (owner's call, 2026-10-04). Kept: squads with officers whose deaths rout them, 3 capturable outposts, KO counter.
 - Boss: **Ironhorn** arrives at 2:00, enrages at 9:00 or below 30% HP, escapes at 10:00 (hunt failed); horns, tail and back break separately. Three subweapons (Orbit Shards, Thunder Call, Flame Wake) plus passives via level-up cards. Best KOs / fastest hunt saved per weapon.
 - Units were enlarged for readability (camera zoom 1.0, bigger sprites) on 2026-10-04.
+- Enemy AI (2026-10-04, after build 2 feedback): enemies only chase what they can see, lead and flank a moving hunter, and give up (recycle) when they lose you; gesture recognizer v2 (thumb tolerances in mm, template-matched shapes).
 - **On TestFlight:** v0.1.0 build 1, uploaded 2026-10-04 (App Store Connect app `6819005826`). The owner is in the internal "Team (Expo)" group, which gets every new build automatically. Not submitted for App Store review; no store listing yet.
 - **On TestFlight: v0.1.0 build 2** (uploaded 2026-10-04, commit `b20b9f7`) has the gesture layer, new weapons and Musou removal. Build 1 predates them.
 - **Not yet played on a real iPhone.** Balance comes from bot telemetry (`systems/bot_input.gd`), not human playtests. Device perf is unmeasured; the debug build shows an fps / enemy-count line above the XP bar.
@@ -36,7 +37,7 @@ Data-oriented swarm: enemies are rows in packed arrays (no node per enemy), draw
 ## Verifying changes
 
 ```sh
-tools/run_checks.sh   # script compile, 80 unit tests, 60 s bot smoke run (all six weapons), benchmark, screen-flow check
+tools/run_checks.sh   # script compile, 85 unit tests, 60 s bot smoke run (all six weapons), benchmark, screen-flow check
 ```
 
 - Everything must pass except, possibly, the **benchmark**: its 6 ms budget at 1,500 enemies is CPU-sensitive. On this box (Ryzen 7 3700X under steady background load, ~7–8 load average) it measures ~6.2 ms and fails; `PERF.md` records 3.3 ms on a quiet 2-core VM. Treat a benchmark-only failure as machine load unless the per-system breakdown regresses relative to `PERF.md` (the owner accepted this on 2026-10-04).

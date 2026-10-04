@@ -13,8 +13,8 @@ signal hold_started
 var stick_left: bool = true
 var zone_top: float = 0.14
 var hold_time: float = 0.3
-var hold_max_dist: float = 22.0
-var aim_dead_zone: float = 24.0
+var hold_max_mm: float = 6.0
+var aim_dead_zone_mm: float = 4.0
 var blocked_rects: Array[Rect2] = []
 var rec := GestureRecognizer.new()
 
@@ -25,7 +25,8 @@ var holding: bool = false
 var hold_origin: Vector2 = Vector2.ZERO
 var hold_current: Vector2 = Vector2.ZERO
 var _moved_far: bool = false
-var _scale: float = 1.0
+var _scale: float = 1.0  ## viewport height / 1280, for drawing sizes
+var px_per_mm: float = 10.0  ## viewport px per physical millimetre, for gesture tolerances
 var _last_msec: int = 0
 
 # feedback
@@ -42,10 +43,25 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	zone_top = Tuning.f("gestures.zone_top", 0.14)
 	hold_time = Tuning.f("gestures.hold_time", 0.3)
-	hold_max_dist = Tuning.f("gestures.hold_max_dist", 22.0)
-	aim_dead_zone = Tuning.f("gestures.aim_dead_zone", 24.0)
+	hold_max_mm = Tuning.f("gestures.hold_max_mm", 6.0)
+	aim_dead_zone_mm = Tuning.f("gestures.aim_dead_zone_mm", 4.0)
 	_scale = get_viewport_rect().size.y / 1280.0
-	rec.setup(_scale)
+	px_per_mm = viewport_px_per_mm(get_viewport())
+	rec.setup(px_per_mm)
+
+
+## Physical scale: screen DPI x (viewport px per window px). Desktop has no meaningful DPI for
+## a thumb, so it pretends the viewport is a phone `desktop_width_mm` wide.
+static func viewport_px_per_mm(vp: Viewport) -> float:
+	var vis := vp.get_visible_rect().size
+	var fallback := vis.x / Tuning.f("gestures.desktop_width_mm", 68.0)
+	if not OS.has_feature("mobile"):
+		return fallback
+	var dpi := DisplayServer.screen_get_dpi()
+	var win := DisplayServer.window_get_size()
+	if dpi <= 0 or win.x <= 0:
+		return fallback
+	return dpi / 25.4 * (vis.x / float(win.x))
 
 
 func is_active() -> bool:
@@ -62,7 +78,7 @@ func reset() -> void:
 ## Hold aim as a unit screen direction, or ZERO while inside the aim dead zone.
 func hold_aim() -> Vector2:
 	var off := hold_current - hold_origin
-	if not holding or off.length() < aim_dead_zone * _scale:
+	if not holding or off.length() < aim_dead_zone_mm * px_per_mm:
 		return Vector2.ZERO
 	return off.normalized()
 
@@ -115,7 +131,7 @@ func _input(event: InputEvent) -> void:
 			hold_current = d.position
 		else:
 			points.append(d.position)
-			if d.position.distance_to(points[0]) > hold_max_dist * _scale:
+			if d.position.distance_to(points[0]) > hold_max_mm * px_per_mm:
 				_moved_far = true
 		queue_redraw()
 
@@ -143,8 +159,8 @@ func _finish() -> void:
 	var ev: Dictionary
 	if holding:
 		var aim := hold_current - hold_origin
-		ev = {"kind": GestureRecognizer.HOLD, "dir": aim.normalized() if aim.length() >= aim_dead_zone * _scale else Vector2.ZERO,
-			"center": hold_origin, "aim": aim if aim.length() >= aim_dead_zone * _scale else Vector2.ZERO,
+		ev = {"kind": GestureRecognizer.HOLD, "dir": aim.normalized() if aim.length() >= aim_dead_zone_mm * px_per_mm else Vector2.ZERO,
+			"center": hold_origin, "aim": aim if aim.length() >= aim_dead_zone_mm * px_per_mm else Vector2.ZERO,
 			"hold_time": (Time.get_ticks_msec() - down_msec) / 1000.0}
 	else:
 		ev = rec.classify(points)

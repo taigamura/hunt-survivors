@@ -50,9 +50,9 @@ Top 5 knobs to playtest first:
 2. **`enemies.hp_growth_per_min`** — how fast the crowd toughens vs. your build (HP multiplier is `1 + 0.8 × minutes`, so ×8.2 by 9:00).
 3. **`monster.max_hp`** + **`monster.parts.*.break_hp`** — length of the Ironhorn fight and how often parts break.
 4. **`weapons.great_sword.thresholds`** (+ `planted_damage_mult`, `brace`) and **`weapons.dual_blades.build_time` / `decay_per_sec`** — how each weapon's movement mechanic feels.
-5. **`gestures.*`** (recognizer thresholds, `perfect_window` / `perfect_mult`) and **`weapons.*.moves[*].cooldown`** — how forgiving the second thumb is and how often moves fire.
+5. **`gestures.*`** (recognizer tolerances in mm, e.g. `tap_max_mm` / `hold_max_mm` / `min_score`; `perfect_window` / `perfect_mult`) and **`weapons.*.moves[*].cooldown`** — how forgiving the second thumb is and how often moves fire.
 
-Also handy: `moves.level_damage` / `level_cooldown` / `shape_unlock_min_level`, `weapons.*.magnet_mult` (guns get a bigger XP magnet because they kill far away), `xp.curve_*` (level pace), `camera.zoom`, `controls.dead_zone` / `full_speed_at`, `outposts.*`, `juice.*`, `haptics_ms.*`.
+Also handy: `enemies.sight_radius` / `lead_*` / `flank_*` / `lost_time` (how the swarm hunts you), `moves.level_damage` / `level_cooldown` / `shape_unlock_min_level`, `weapons.*.magnet_mult` (guns get a bigger XP magnet because they kill far away), `xp.curve_*` (level pace), `camera.zoom`, `controls.dead_zone` / `full_speed_at`, `outposts.*`, `juice.*`, `haptics_ms.*`.
 
 ## Swapping in real art
 
@@ -83,7 +83,7 @@ tools/run_checks.sh            # everything below, fails on any test failure or 
 | Step | Command |
 |---|---|
 | Compile every script | `godot --headless --path . res://tools/check_scripts.tscn` |
-| Unit tests (80; `-- only=test_moves` runs one file) | `godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn` |
+| Unit tests (85; `-- only=test_moves` runs one file) | `godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn` |
 | Smoke run, all six weapons, 60 s bot play (bot uses gestures too) | `godot --headless --path . --fixed-fps 60 res://tests/smoke.tscn -- seconds=60` |
 | Benchmark (500 / 1k / 1.5k / 2k enemies) | `godot --headless --path . --fixed-fps 60 res://scenes/benchmark.tscn` |
 | Screen flow (title → weapon → loadout → hunt → results) | `godot --headless --path . --fixed-fps 60 res://tools/flow_check.tscn` |

@@ -31,6 +31,9 @@ var squad: PackedInt32Array
 var slot: PackedInt32Array  ## index into `active`, -1 when free
 var wob_c: PackedFloat32Array  ## per-enemy heading wobble (cos/sin) so crowds fan out
 var wob_s: PackedFloat32Array
+var flank: PackedFloat32Array  ## per-enemy -1..1: which side (and how far) it flanks a moving hunter
+var last_seen: PackedVector2Array  ## where the hunter was when this enemy last saw it
+var lost_t: PackedFloat32Array  ## seconds spent at last_seen without finding the hunter
 
 # --- live set + free list
 var active: PackedInt32Array
@@ -53,6 +56,7 @@ var hp_mult: float = 1.0
 var last_contact_pos: Vector2 = Vector2.ZERO
 var speed_mult: float = 1.0
 var target: Vector2 = Vector2.ZERO
+var target_vel: Vector2 = Vector2.ZERO  ## the hunter's velocity (enemies lead their chase)
 var despawn_dist_sq: float = 1900.0 * 1900.0
 var sep_checks: int = 4
 var sep_strength: float = 0.55
@@ -64,6 +68,14 @@ var direct_chase_sq: float = 4900.0
 var wobble: float = 0.45
 var look_ahead: float = 170.0
 var wobble_min_sq: float = 260.0 * 260.0
+var sight_sq: float = 720.0 * 720.0
+var lead_factor: float = 0.7
+var lead_max: float = 1.0
+var flank_frac: float = 0.5
+var flank_max: float = 220.0
+var lost_reach_sq: float = 70.0 * 70.0
+var lost_time: float = 3.0
+var lost_despawns: int = 0  ## telemetry: enemies that gave up the search and were recycled
 
 var hash: SpatialHash
 var field: FlowField
@@ -94,6 +106,13 @@ func setup(p_field: FlowField, p_cap: int = -1) -> void:
 	wobble = Tuning.f("enemies.heading_wobble", 0.45)
 	look_ahead = Tuning.f("flow_field.look_ahead", 170.0)
 	wobble_min_sq = pow(Tuning.f("enemies.wobble_min_distance", 260.0), 2.0)
+	sight_sq = pow(Tuning.f("enemies.sight_radius", 720.0), 2.0)
+	lead_factor = Tuning.f("enemies.lead_factor", 0.7)
+	lead_max = Tuning.f("enemies.lead_max", 1.0)
+	flank_frac = Tuning.f("enemies.flank_frac", 0.5)
+	flank_max = Tuning.f("enemies.flank_max", 220.0)
+	lost_reach_sq = pow(Tuning.f("enemies.lost_reach", 70.0), 2.0)
+	lost_time = Tuning.f("enemies.lost_time", 3.0)
 	hash = SpatialHash.new(3600.0, 80.0)
 
 	pos.resize(cap)
@@ -108,12 +127,16 @@ func setup(p_field: FlowField, p_cap: int = -1) -> void:
 	slot.fill(-1)
 	wob_c.resize(cap)
 	wob_s.resize(cap)
+	flank.resize(cap)
+	last_seen.resize(cap)
+	lost_t.resize(cap)
 	var wrng := RandomNumberGenerator.new()
 	wrng.seed = 99
 	for k in cap:
 		var a := wrng.randf_range(-wobble, wobble)
 		wob_c[k] = cos(a)
 		wob_s[k] = sin(a)
+		flank[k] = wrng.randf_range(-1.0, 1.0)
 	active.resize(cap)
 	free_stack.resize(cap)
 	n_active = 0
@@ -202,6 +225,8 @@ func spawn(type: int, p: Vector2, squad_id: int = -1) -> int:
 	flee[i] = 0.0
 	etype[i] = type
 	squad[i] = squad_id
+	last_seen[i] = target  # spawned by the noise of the hunt: it knows roughly where you are
+	lost_t[i] = 0.0
 	active[n_active] = i
 	slot[i] = n_active
 	n_active += 1
@@ -377,6 +402,9 @@ func step(dt: float) -> void:
 	_frame += 1
 	hash.build(pos, active, n_active, target)
 	var tgt := target
+	var tvel := target_vel
+	var moving := tvel.length_squared() > 100.0
+	var tperp := tvel.normalized().orthogonal() if moving else Vector2.ZERO
 	var decay := exp(-kb_decay * dt)
 	var parity := _frame & 1
 	var hs := hash
@@ -423,12 +451,37 @@ func step(dt: float) -> void:
 			if d2 > despawn_dist_sq:
 				_despawn_queue.append(i)
 				continue
-			if d2 < direct_chase_sq:
-				desired = to / sqrt(d2) if d2 > 0.01 else Vector2.ZERO
+			# Where to go. In sight: lead the hunter and flank to the side, so a chasing crowd
+			# fans out and cuts across your path instead of filing along your trail. Out of
+			# sight: walk to where you last saw it; if it isn't there, mill about, then give up.
+			var goal := tgt
+			var searching := false
+			if d2 <= sight_sq:
+				last_seen[i] = tgt
+				lost_t[i] = 0.0
+				if moving and d2 > direct_chase_sq:
+					var dl0 := sqrt(d2)
+					goal = tgt + tvel * minf(dl0 / spd, lead_max) * lead_factor + tperp * (flank[i] * minf(dl0 * flank_frac, flank_max))
 			else:
-				var dl := sqrt(d2)
+				goal = last_seen[i]
+				if p.distance_squared_to(goal) <= lost_reach_sq:
+					searching = true
+					lost_t[i] += dt
+					if lost_t[i] >= lost_time:
+						_despawn_queue.append(i)
+						lost_despawns += 1
+						continue
+			to = goal - p
+			var g2 := to.length_squared()
+			if searching:
+				# mill about: drift along the enemy's own wobble direction at a third of its speed
+				desired = Vector2(wob_c[i], wob_s[i]) * 0.35
+			elif g2 < direct_chase_sq:
+				desired = to / sqrt(g2) if g2 > 0.01 else Vector2.ZERO
+			else:
+				var dl := sqrt(g2)
 				desired = to / dl
-				# Straight at the hunter unless the line ahead is obstructed — then follow the
+				# Straight at the goal unless the line ahead is obstructed — then follow the
 				# flow field. (Pure grid fields funnel crowds into axis-aligned lanes.)
 				var la := minf(dl, look_ahead)
 				var ax := p.x + desired.x * la * 0.45

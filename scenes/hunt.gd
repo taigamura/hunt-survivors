@@ -338,6 +338,7 @@ func _process(delta: float) -> void:
 	var t1 := Time.get_ticks_usec()
 	field.update(player.position)
 	enemies.target = player.position
+	enemies.target_vel = player.velocity
 	var t2 := Time.get_ticks_usec()
 	enemies.step(dt)
 	var t3 := Time.get_ticks_usec()
