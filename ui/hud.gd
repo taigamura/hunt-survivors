@@ -1,7 +1,8 @@
 class_name HUD
 extends Control
 ## Portrait HUD drawn in one pass: KO counter, timer, monster bar, banners, XP bar,
-## Musou button, off-screen indicators, damage vignette. Handles the two on-screen buttons.
+## gesture chips (bound moves + cooldowns), off-screen indicators, damage vignette.
+## Handles the pause button.
 
 var hunt: Node  ## Hunt (untyped to avoid a cyclic class reference)
 var font: Font
@@ -12,7 +13,6 @@ var milestone_text: String = ""
 var milestone_time: float = 0.0
 var vignette: float = 0.0
 var flash: float = 0.0
-var musou_rect: Rect2
 var pause_rect: Rect2
 var insets: Dictionary = {}
 var _clock: float = 0.0
@@ -50,24 +50,17 @@ func layout() -> void:
 	var t := float(insets.get("top", 10.0))
 	var l := float(insets.get("left", 10.0))
 	var r := float(insets.get("right", 10.0))
-	var mr := 66.0
-	var cy := sz.y - b - 44.0 - mr
-	var cx := (l + 34.0 + mr) if GameState.musou_left else (sz.x - r - 34.0 - mr)
-	musou_rect = Rect2(cx - mr - 10, cy - mr - 10, (mr + 10) * 2, (mr + 10) * 2)
 	pause_rect = Rect2(l + 8, t + 8, 72, 72)
 
 
 func blocked_rects() -> Array[Rect2]:
-	return [musou_rect, pause_rect]
+	return [pause_rect]
 
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 		var p := (event as InputEventScreenTouch).position
-		if musou_rect.has_point(p):
-			hunt.call("request_musou")
-			get_viewport().set_input_as_handled()
-		elif pause_rect.has_point(p):
+		if pause_rect.has_point(p):
 			hunt.call("toggle_pause")
 			get_viewport().set_input_as_handled()
 
@@ -201,8 +194,8 @@ func _draw() -> void:
 	draw_rect(Rect2(xr.position, Vector2(xr.size.x * prog.progress(), xr.size.y)), ArtRegistry.color("ui.xp"))
 	_text(Vector2(left + 14, xy - 10), "Lv %d" % prog.level, 26, txt, HORIZONTAL_ALIGNMENT_LEFT)
 
-	# --- musou button
-	_draw_musou_button()
+	# --- gesture chips
+	_draw_gesture_chips(sz, bottom, left, right)
 
 	# --- debug perf line
 	if OS.is_debug_build():
@@ -214,25 +207,34 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, sz), Color(1, 0.97, 0.85, clampf(flash, 0.0, 1.0) * 0.8))
 
 
-func _draw_musou_button() -> void:
-	var gauge: MusouGauge = hunt.get("musou")
-	var c := musou_rect.get_center()
-	var r := musou_rect.size.x * 0.5 - 10.0
-	var col := ArtRegistry.color("fx.musou")
-	var full := gauge.is_full()
-	var active: bool = float(hunt.get("musou_timer")) > 0.0
-	if full:
-		var pulse := 0.5 + 0.5 * sin(_clock * 8.0)
-		draw_circle(c, r + 12.0 + 6.0 * pulse, Color(col.r, col.g, col.b, 0.25 + 0.2 * pulse))
-	draw_circle(c, r, Color(0, 0, 0, 0.55) if not full else Color(col.r * 0.5, col.g * 0.4, col.b * 0.1, 0.9))
-	draw_arc(c, r, 0.0, TAU, 48, Color(1, 1, 1, 0.15), 8.0)
-	draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * gauge.fraction(), 48, col, 8.0)
-	var tc := Color(1, 1, 1) if full else Color(1, 1, 1, 0.5)
-	if gauge.is_locked() and not active:
-		_text(c + Vector2(0, 2), "MUSOU", 22, Color(1, 1, 1, 0.35))
-		_text(c + Vector2(0, 30), "%ds" % ceili(gauge.lock_timer), 22, Color(1, 1, 1, 0.5))
-	else:
-		_text(c + Vector2(0, 10), "MUSOU" if not active else "!!!", 26, tc)
+## One chip per bound gesture on the gesture side: glyph, cooldown sweep, level pips.
+func _draw_gesture_chips(sz: Vector2, bottom: float, left: float, right: float) -> void:
+	var moves: MoveSet = hunt.get("moves")
+	if moves == null:
+		return
+	var kinds := moves.bound_gestures()
+	var r := 27.0
+	var gap := 66.0
+	var per_row := 4
+	var on_right := GameState.stick_left
+	for k in kinds.size():
+		var row := k / per_row
+		var col := k % per_row
+		var x := (sz.x - right - 22.0 - r - col * gap) if on_right else (left + 22.0 + r + col * gap)
+		var y := sz.y - bottom - 70.0 - r - row * (gap + 10.0)
+		var c := Vector2(x, y)
+		var mid := moves.move_for(kinds[k])
+		var cd := moves.cooldown_frac(mid)
+		var ready := cd <= 0.0
+		draw_circle(c, r, Color(0, 0, 0, 0.5))
+		var gcol := ArtRegistry.color("ui.text") if ready else ArtRegistry.color("ui.text_dim")
+		UIKit.draw_glyph(self, kinds[k], c, r * 0.55, gcol)
+		if not ready:
+			draw_colored_polygon(FX.pie(c, Vector2.UP, r, PI * cd), Color(0, 0, 0, 0.45))
+		draw_arc(c, r, 0.0, TAU, 32, ArtRegistry.color("ui.accent2") if ready else Color(1, 1, 1, 0.2), 3.0)
+		var lvl := moves.level_of(mid)
+		for pip in lvl:
+			draw_circle(c + Vector2((pip - (lvl - 1) * 0.5) * 9.0, r + 7.0), 3.0, ArtRegistry.color("ui.accent"))
 
 
 func _vignette(sz: Vector2, c: Color) -> void:

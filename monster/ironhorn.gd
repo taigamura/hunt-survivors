@@ -44,6 +44,11 @@ var attack_cd: float = 1.0
 var hit_flash: float = 0.0
 var roam_target: Vector2 = Vector2.ZERO
 var contact_cd: float = 0.0
+var direct_timer: float = 0.0
+var ghost_timer: float = 0.0  ## last resort when wedged: ignore rocks briefly
+var rock_radius: float = 30.0  ## collision radius against rocks (smaller than the body)
+var _stuck_time: float = 0.0
+var _stuck_anchor: Vector2 = Vector2.INF
 
 # telemetry
 var attacks_done: Dictionary = {"charge": 0, "sweep": 0, "roar": 0}
@@ -58,6 +63,7 @@ func setup(p_hunt: HuntContext, seed_value: int = 0) -> void:
 	max_hp = float(cfg["max_hp"])
 	hp = max_hp
 	body_radius = float(cfg["body_radius"])
+	rock_radius = float(cfg.get("rock_collision_radius", body_radius * 0.8))
 	speed = float(cfg["speed"])
 	turn_rate = float(cfg["turn_rate"])
 	parts.clear()
@@ -134,6 +140,8 @@ func update(dt: float) -> void:
 		hit_flash -= dt
 	if contact_cd > 0.0:
 		contact_cd -= dt
+	if ghost_timer > 0.0:
+		ghost_timer -= dt
 	if attack_cd > 0.0:
 		attack_cd -= dt
 	if not enraged and (time_enraged or hp <= max_hp * float(cfg["enrage_hp_frac"])):
@@ -150,9 +158,13 @@ func update(dt: float) -> void:
 			if dist < float(cfg["aggro_range"]) or state_time > 6.0:
 				_set_state(State.PURSUE)
 		State.PURSUE:
-			var sd := hunt.steer_dir(position, player.position)
+			# The flow field is built for small swarm enemies; its path can squeeze past a rock
+			# Ironhorn's body can't. Slide along rocks, and if that still makes no progress,
+			# chase directly for a moment.
+			var sd := to_player.normalized() if direct_timer > 0.0 else hunt.steer_dir(position, player.position)
 			_turn_toward(sd, dt)
-			position += facing * _speed() * dt
+			position += _slide(facing * _speed() * dt, to_player)
+			_track_stuck(dt)
 			if attack_cd <= 0.0:
 				var choice := _choose_attack(dist)
 				if choice != "":
@@ -206,6 +218,47 @@ func _move_toward(p: Vector2, spd: float, dt: float) -> void:
 	position += facing * spd * dt
 
 
+## Removes the part of a step that pushes into a rock (slide along it); a head-on step slides
+## toward the side facing `toward`.
+func _slide(step: Vector2, toward: Vector2) -> Vector2:
+	var p := hunt.player
+	if p == null:
+		return step
+	var np := position + step
+	for rk in p.rocks:
+		var c := Vector2(rk.x, rk.y)
+		var rr := rk.z + rock_radius
+		var d := np - c
+		if d.length_squared() >= rr * rr:
+			continue
+		var n := (position - c).normalized()
+		var into := step.dot(n)
+		if into < 0.0:
+			var spd := step.length()
+			step -= n * into
+			if step.length() < spd * 0.35:
+				var t := n.orthogonal()
+				if t.dot(toward) < 0.0:
+					t = -t
+				step = t * spd
+	return step
+
+
+func _track_stuck(dt: float) -> void:
+	if direct_timer > 0.0:
+		direct_timer -= dt
+	if _stuck_anchor == Vector2.INF:
+		_stuck_anchor = position
+	_stuck_time += dt
+	if _stuck_time >= 1.0:
+		if position.distance_to(_stuck_anchor) < _speed() * 0.2:
+			if direct_timer > 0.0:
+				ghost_timer = 1.2  # direct chase didn't free it either: crash through
+			direct_timer = 2.0
+		_stuck_time = 0.0
+		_stuck_anchor = position
+
+
 func _turn_toward(dir: Vector2, dt: float) -> void:
 	var a := facing.angle()
 	var target_a := dir.angle()
@@ -221,9 +274,9 @@ func _resolve_collisions() -> void:
 		return
 	var mr := p.map_rect
 	var hit_rock := false
-	for rk in p.rocks:
+	for rk in (p.rocks if ghost_timer <= 0.0 else [] as Array[Vector3]):
 		var c := Vector2(rk.x, rk.y)
-		var rr := rk.z + body_radius * 0.8
+		var rr := rk.z + rock_radius
 		var d := position - c
 		var l2 := d.length_squared()
 		if l2 < rr * rr:
@@ -340,6 +393,77 @@ func _charge_step(dt: float) -> void:
 				charge_hit_player = true
 	if charge_travel >= charge_len:
 		_set_state(State.RECOVER)
+
+
+# ----------------------------------------------------------------- counters & aiming
+
+## True while the telegraphed attack would hit a circle at p (radius r).
+func threatens(p: Vector2, r: float) -> bool:
+	if state != State.TELEGRAPH:
+		return false
+	var a: Dictionary = cfg["attacks"][attack]
+	match attack:
+		"charge":
+			var w := float(a["width"]) * 0.5 + body_radius * 0.4
+			return Geom.capsule_circle(position, position + attack_dir * charge_len, w, p, r)
+		"sweep":
+			return Geom.arc_circle(position, float(a["radius"]), -facing, deg_to_rad(float(a["arc_deg"])) * 0.5, p, r)
+		"roar":
+			return Geom.circle_circle(position, float(a["radius"]), p, r)
+	return false
+
+
+## Perfect-counter window: the last `window` seconds of a telegraph that threatens p.
+func counter_window(p: Vector2, r: float, window: float) -> bool:
+	return state == State.TELEGRAPH and telegraph_time - state_time <= window and threatens(p, r)
+
+
+## A perfect counter cancels the attack: it goes straight to recovery, as if the attack had
+## whiffed, plus `seconds` of extra recovery.
+func interrupt(seconds: float) -> void:
+	if not is_alive():
+		return
+	_set_state(State.RECOVER)
+	state_time = -seconds
+	hit_flash = 0.15
+
+
+## Distance along a ray (a, unit dir) where a round of half-width w first touches the body
+## or a part; INF if it misses.
+func ray_entry(a: Vector2, dir: Vector2, w: float) -> float:
+	if not is_alive() or state == State.FLEE:
+		return INF
+	var best := _ray_circle(a, dir, position, body_radius + w)
+	for pn in PART_NAMES:
+		best = minf(best, _ray_circle(a, dir, part_world(pn), float(parts[pn]["radius"]) + w))
+	return best
+
+
+static func _ray_circle(a: Vector2, dir: Vector2, c: Vector2, r: float) -> float:
+	var ac := c - a
+	var tc := ac.dot(dir)
+	var d2 := ac.length_squared() - tc * tc
+	if d2 > r * r:
+		return INF
+	var t := tc - sqrt(r * r - d2)
+	if t < 0.0:
+		return 0.0 if ac.length_squared() <= r * r else INF
+	return t
+
+
+## Where precision weapons aim: the nearest unbroken part to `from`, else the body.
+func aim_point(from: Vector2) -> Vector2:
+	var best := position
+	var best_d := INF
+	for pn in PART_NAMES:
+		if is_broken(pn):
+			continue
+		var p := part_world(pn)
+		var d := p.distance_squared_to(from)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
 
 
 # ----------------------------------------------------------------- damage

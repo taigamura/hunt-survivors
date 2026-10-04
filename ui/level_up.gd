@@ -49,6 +49,10 @@ func show_options(options: Array[Dictionary], level: int) -> void:
 		match String(o["kind"]):
 			"weapon":
 				tag = "WEAPON"
+			"move":
+				tag = "GESTURE MOVE"
+			"gesture":
+				tag = "NEW GESTURE"
 			"sub":
 				tag = "SUB-WEAPON"
 			"passive":

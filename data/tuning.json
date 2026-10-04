@@ -20,7 +20,7 @@
   },
 
   "camera": {
-    "zoom": 0.8,
+    "zoom": 1.0,
     "smoothing": 7.0,
     "look_ahead": 110,
     "shake_max_offset": 26,
@@ -36,7 +36,7 @@
   },
 
   "player": {
-    "radius": 15,
+    "radius": 19,
     "speed": 215,
     "max_hp": 120,
     "iframes": 0.5,
@@ -59,10 +59,10 @@
     "hp_growth_per_min": 0.8,
     "speed_growth_per_min": 0.03,
     "types": {
-      "grunt":   {"hp": 8,   "speed": 72,  "radius": 12, "contact": 4,  "xp": 1,  "mass": 1.0, "ko_musou": 0.25},
-      "runner":  {"hp": 6,   "speed": 128, "radius": 10, "contact": 4,  "xp": 1,  "mass": 0.7, "ko_musou": 0.25},
-      "brute":   {"hp": 48,  "speed": 52,  "radius": 18, "contact": 11, "xp": 4,  "mass": 3.0, "ko_musou": 1.0},
-      "officer": {"hp": 220, "speed": 82,  "radius": 24, "contact": 14, "xp": 20, "mass": 5.0, "ko_musou": 10}
+      "grunt":   {"hp": 8,   "speed": 72,  "radius": 15, "contact": 4,  "xp": 1,  "mass": 1.0},
+      "runner":  {"hp": 6,   "speed": 128, "radius": 12, "contact": 4,  "xp": 1,  "mass": 0.7},
+      "brute":   {"hp": 48,  "speed": 52,  "radius": 22, "contact": 11, "xp": 4,  "mass": 3.0},
+      "officer": {"hp": 220, "speed": 82,  "radius": 29, "contact": 14, "xp": 20, "mass": 5.0}
     }
   },
 
@@ -103,20 +103,6 @@
     "tier_values": [3, 10]
   },
 
-  "musou": {
-    "max": 300,
-    "gain_officer_bonus": 30,
-    "gain_part_break": 80,
-    "recharge_lock": 20,
-    "duration": 1.5,
-    "slowmo_scale": 0.25,
-    "slowmo_real_sec": 0.45,
-    "blast_margin": 80,
-    "monster_damage_frac": 0.06,
-    "monster_range": 1000,
-    "db_dash_count": 6
-  },
-
   "outposts": {
     "radius": 150,
     "capture_time": 4.0,
@@ -143,8 +129,45 @@
     "gs_level3": 35,
     "dash_cut": 20,
     "part_break": 60,
-    "musou": 90,
-    "hurt": 25
+    "hurt": 25,
+    "perfect": 50,
+    "block": 12
+  },
+
+  "gestures": {
+    "_readme": "Second-thumb gesture pad. Distances are screen px at the 720x1280 base (scaled to the real viewport).",
+    "zone_top": 0.14,
+    "tap_max_dist": 26,
+    "hold_time": 0.3,
+    "hold_max_dist": 22,
+    "swipe_min_len": 70,
+    "swipe_straightness": 0.86,
+    "shape_min_size": 60,
+    "corner_deg": 75,
+    "circle_turn_deg": 270,
+    "closed_frac": 0.35,
+    "resample": 40,
+    "aim_dead_zone": 24,
+    "perfect_window": 0.3,
+    "perfect_mult": 1.5,
+    "perfect_iframes": 0.7,
+    "perfect_slowmo": 0.35,
+    "perfect_slowmo_ms": 260,
+    "perfect_recover": 0.4
+  },
+
+  "moves": {
+    "_readme": "Moves bound to gestures. Tap/swipe/hold are chosen in the pre-hunt loadout; shape gestures (circle, v, zigzag, triangle) unlock from level-up cards. Moves level up to max_level from cards.",
+    "start_gestures": ["tap", "swipe", "hold"],
+    "shape_gestures": ["circle", "v", "zigzag", "triangle"],
+    "max_level": 3,
+    "level_damage": 0.3,
+    "level_cooldown": 0.12,
+    "shape_unlock_min_level": 3,
+    "shared": [
+      {"id": "roll",      "name": "Dodge Roll",     "desc": "Roll with invulnerability", "cooldown": 1.4, "distance": 170, "duration": 0.2},
+      {"id": "lightning", "name": "Call Lightning", "desc": "Strike the target with lightning (stronger with Thunder Call)", "cooldown": 6.0, "reach": 260, "radius": 110, "damage": 45, "per_thunder_level": 0.25}
+    ]
   },
 
   "weapons": {
@@ -168,6 +191,14 @@
         {"id": "gs_shockwave", "name": "Earthsplitter", "max": 2, "per_level": 0.5,  "desc": "Level-3 release also sends out a shockwave ring"},
         {"id": "gs_swipe",     "name": "Restless Edge", "max": 3, "per_level": 0.2,  "desc": "Moving swipe 20% faster and +50% damage"},
         {"id": "gs_retain",    "name": "Steady Grip",   "max": 1, "per_level": 0.5,  "desc": "After a release, keep 50% of your charge"}
+      ],
+      "default_loadout": {"tap": "gs_tackle", "swipe": "gs_aimed", "hold": "gs_slam"},
+      "moves": [
+        {"id": "gs_aimed",  "name": "Aimed Unleash", "desc": "Release your charge toward the swipe without moving", "cooldown": 0.3, "uncharged_damage": 14, "uncharged_radius": 120, "uncharged_half_angle_deg": 45, "knock": 160},
+        {"id": "gs_tackle", "name": "Tackle",        "desc": "Shoulder-charge forward; keeps and adds to your charge", "cooldown": 1.6, "distance": 130, "duration": 0.14, "width": 40, "damage": 10, "knock": 420, "charge_add": 0.45},
+        {"id": "gs_slam",   "name": "Overhead Slam", "desc": "Spend your charge on a crushing slam at the target", "cooldown": 2.4, "reach": 150, "radius": 110, "radius_per_level": 35, "damage": 20, "damage_per_level": 40, "knock": 300},
+        {"id": "gs_whirl",  "name": "Whirlwind",     "desc": "Release your charge in a full circle (needs charge)", "cooldown": 3.0, "damage_frac": 0.75, "radius_frac": 0.9},
+        {"id": "gs_quake",  "name": "Fissure",       "desc": "Split the earth in a line ahead", "cooldown": 5.0, "count": 5, "spacing": 90, "radius": 75, "damage": 28, "knock": 250}
       ]
     },
     "dual_blades": {
@@ -186,6 +217,127 @@
         {"id": "db_trail",  "name": "Long Shadow",     "max": 2, "per_level": 0.5,  "desc": "Afterimages last 50% longer and appear at 80% momentum"},
         {"id": "db_ignite", "name": "Burning Cut",     "max": 2, "per_level": 0.3,  "desc": "Dash cut +30% damage and leaves a flame line"},
         {"id": "db_decay",  "name": "Momentum Keeper", "max": 3, "per_level": 0.3,  "desc": "Momentum decays 30% slower"}
+      ],
+      "default_loadout": {"tap": "db_flurry", "swipe": "db_aimed_dash", "hold": "db_shadow"},
+      "moves": [
+        {"id": "db_aimed_dash", "name": "Dash Cut",    "desc": "Dash-cut toward the swipe (spends momentum)", "cooldown": 0.45, "momentum_cost": 0.3, "min_momentum": 0.25, "weak_mult": 0.5},
+        {"id": "db_flurry",     "name": "Flurry",      "desc": "Three quick slashes at the nearest foe; builds momentum", "cooldown": 0.5, "radius": 110, "half_angle_deg": 50, "damage": 6, "hits": 3, "momentum_gain": 0.15, "knock": 90},
+        {"id": "db_shadow",     "name": "Shadow Step", "desc": "Blink toward the target, leaving damaging afterimages", "cooldown": 3.0, "distance": 280, "duration": 0.1, "width": 40, "damage": 24, "afterimages": 6},
+        {"id": "db_vortex",     "name": "Blade Vortex","desc": "Spend all momentum on a huge spinning cut", "cooldown": 5.0, "radius": 150, "radius_per_momentum": 120, "damage": 18, "damage_per_momentum": 40, "knock": 360},
+        {"id": "db_xslash",     "name": "X Slash",     "desc": "Two crossing cuts through the target", "cooldown": 2.5, "length": 260, "width": 34, "damage": 30, "knock": 220}
+      ]
+    },
+    "sword_shield": {
+      "name": "Bulwark",
+      "tagline": "Hold the line. Walk or stand to raise your shield; blocks charge a counter-bash.",
+      "guard_below": 0.8,
+      "guard_arc_deg": 150,
+      "guard_mult": 0.25,
+      "jab": {"interval": 0.42, "radius": 95, "half_angle_deg": 40, "damage": 7, "knock": 140},
+      "retaliate": {"energy_per_damage": 6, "max": 100, "radius": 170, "half_angle_deg": 80, "damage": 45, "knock": 520},
+      "upgrades": [
+        {"id": "sh_arc",    "name": "Tower Shield", "max": 2, "per_level": 40,   "desc": "Guard covers 40 degrees more"},
+        {"id": "sh_jab",    "name": "Swift Blade",  "max": 3, "per_level": 0.2,  "desc": "Sword jabs 20% faster"},
+        {"id": "sh_bash",   "name": "Heavy Bash",   "max": 3, "per_level": 0.35, "desc": "Counter-bash +35% damage and reach"},
+        {"id": "sh_thorns", "name": "Spiked Rim",   "max": 2, "per_level": 10,   "desc": "Blocking deals 10 damage back"},
+        {"id": "sh_grudge", "name": "Grudge",       "max": 3, "per_level": 0.3,  "desc": "Blocks charge the bash 30% faster"}
+      ],
+      "default_loadout": {"tap": "sh_counter", "swipe": "sh_charge", "hold": "sh_wall"},
+      "moves": [
+        {"id": "sh_counter", "name": "Guard Counter", "desc": "Brace for 0.4 s; anything that hits you is countered", "cooldown": 1.2, "window": 0.4, "radius": 200, "half_angle_deg": 65, "damage": 50, "knock": 520},
+        {"id": "sh_charge",  "name": "Shield Charge", "desc": "Rush forward, bulldozing everything ahead", "cooldown": 1.8, "distance": 240, "duration": 0.2, "width": 60, "damage": 18, "knock": 560},
+        {"id": "sh_wall",    "name": "Shield Wall",   "desc": "Hold: block from all sides. Release: shockwave (longer hold, bigger blast)", "cooldown": 4.0, "guard_mult": 0.15, "radius": 150, "radius_per_sec": 80, "damage": 20, "damage_per_sec": 30, "max_hold": 1.5, "knock": 480},
+        {"id": "sh_throw",   "name": "Shield Throw",  "desc": "Hurl your shield out and back", "cooldown": 2.6, "distance": 320, "width": 36, "damage": 24, "knock": 200},
+        {"id": "sh_slam",    "name": "Earthguard",    "desc": "Slam the shield down, blasting back everything around you", "cooldown": 4.0, "radius": 190, "damage": 22, "knock": 650}
+      ]
+    },
+    "pistol": {
+      "name": "Hand Cannon",
+      "tagline": "Steady your aim. Stand still for faster, piercing shots; move to hip-fire.",
+      "magnet_mult": 2.0,
+      "range": 540,
+      "width": 8,
+      "steady_time": 1.0,
+      "steady_decay": 3.0,
+      "hip":    {"interval": 0.5,  "damage": 11, "pierce": 1, "spread_deg": 10, "knock": 60},
+      "steady": {"interval": 0.28, "damage": 17, "pierce": 4, "spread_deg": 0,  "knock": 110},
+      "upgrades": [
+        {"id": "ps_rate",   "name": "Quick Draw",  "max": 3, "per_level": 0.12, "desc": "Fire rate +12%"},
+        {"id": "ps_pierce", "name": "Hollow Point","max": 3, "per_level": 1,    "desc": "Shots pierce 1 more foe"},
+        {"id": "ps_steady", "name": "Cool Head",   "max": 3, "per_level": 0.25, "desc": "Steady aim builds 25% faster"},
+        {"id": "ps_power",  "name": "Marksman",    "max": 3, "per_level": 0.2,  "desc": "Steady shots +20% damage"},
+        {"id": "ps_hip",    "name": "Gunslinger",  "max": 2, "per_level": 0.5,  "desc": "Hip-fire damage +50%"}
+      ],
+      "default_loadout": {"tap": "ps_ricochet", "swipe": "ps_fan", "hold": "ps_called"},
+      "moves": [
+        {"id": "ps_fan",      "name": "Fan the Hammer", "desc": "Six rapid shots across the swipe", "cooldown": 1.2, "shots": 6, "spread_deg": 36, "damage": 10, "pierce": 2},
+        {"id": "ps_called",   "name": "Called Shot",    "desc": "A huge piercing round toward the target", "cooldown": 3.0, "damage": 90, "pierce": 15, "width": 16, "range": 800},
+        {"id": "ps_ricochet", "name": "Ricochet",       "desc": "A round that bounces between up to 6 foes", "cooldown": 0.9, "damage": 16, "bounces": 6, "bounce_range": 240},
+        {"id": "ps_deadeye",  "name": "Dead Eye",       "desc": "Instantly steady; the next 8 shots deal double damage", "cooldown": 8.0, "shots": 8, "mult": 2.0},
+        {"id": "ps_flare",    "name": "Flare Shot",     "desc": "Set the ground ablaze at the target", "cooldown": 4.0, "reach": 300, "radius": 90, "life": 3.0, "damage": 8, "patches": 5}
+      ]
+    },
+    "dual_pistols": {
+      "name": "Twin Fangs",
+      "tagline": "Gun kata. Keep moving and both guns fire to your sides; snap-turn to spin.",
+      "magnet_mult": 1.5,
+      "range": 460,
+      "width": 6,
+      "side_interval": 0.17,
+      "still_interval": 0.24,
+      "damage": 6,
+      "pierce": 1,
+      "knock": 40,
+      "side_seek_deg": 40,
+      "jitter_deg": 6,
+      "spin": {"turn_deg": 120, "shots": 12, "damage": 7, "cooldown": 1.0, "min_deflection": 0.5, "grace": 0.2},
+      "upgrades": [
+        {"id": "dp_rate",   "name": "Hair Trigger",  "max": 3, "per_level": 0.12, "desc": "Fire rate +12%"},
+        {"id": "dp_pierce", "name": "Penetrator",    "max": 2, "per_level": 1,    "desc": "Shots pierce 1 more foe"},
+        {"id": "dp_spin",   "name": "Whirling Lead", "max": 2, "per_level": 6,    "desc": "Snap-turn spin fires 6 more bullets"},
+        {"id": "dp_seek",   "name": "Sixth Sense",   "max": 2, "per_level": 15,   "desc": "Side guns track foes 15 degrees wider"},
+        {"id": "dp_damage", "name": "Heavy Rounds",  "max": 3, "per_level": 0.2,  "desc": "Damage +20%"}
+      ],
+      "default_loadout": {"tap": "dp_spin", "swipe": "dp_slide", "hold": "dp_barrage"},
+      "moves": [
+        {"id": "dp_spin",    "name": "Bullet Spin", "desc": "A ring of bullets in every direction", "cooldown": 1.2, "shots": 16, "damage": 7, "pierce": 2},
+        {"id": "dp_slide",   "name": "Slide Shot",  "desc": "Slide toward the swipe, firing ahead", "cooldown": 1.5, "distance": 200, "duration": 0.2, "shots": 8, "spread_deg": 30, "damage": 8, "pierce": 2},
+        {"id": "dp_barrage", "name": "Barrage",     "desc": "A hail of rounds on the target", "cooldown": 3.5, "reach": 260, "radius": 140, "hits": 6, "blast_radius": 60, "damage": 14},
+        {"id": "dp_kata",    "name": "Gun Kata",    "desc": "1.5 s of spinning fire in all directions", "cooldown": 7.0, "duration": 1.5, "interval": 0.1, "shots": 8, "damage": 6, "pierce": 1},
+        {"id": "dp_point",   "name": "Point Blank", "desc": "Both guns into the nearest foe for heavy damage", "cooldown": 1.5, "damage": 40, "pierce": 1, "range": 220}
+      ]
+    },
+    "assault_rifle": {
+      "name": "Assault Rifle",
+      "tagline": "Spin up and never let go. Fire rakes where you move; stand still to lock on.",
+      "magnet_mult": 1.7,
+      "range": 560,
+      "width": 7,
+      "interval_start": 0.16,
+      "interval_min": 0.075,
+      "spinup_time": 2.5,
+      "spindown_time": 1.0,
+      "damage": 5,
+      "pierce": 1,
+      "knock": 30,
+      "seek_deg": 30,
+      "spread_run_deg": 12,
+      "spread_walk_deg": 5,
+      "spread_still_deg": 2,
+      "walk_below": 0.8,
+      "upgrades": [
+        {"id": "ar_spin",   "name": "Motor Drive",     "max": 3, "per_level": 0.3,  "desc": "Spins up 30% faster"},
+        {"id": "ar_pierce", "name": "AP Rounds",       "max": 3, "per_level": 1,    "desc": "Shots pierce 1 more foe"},
+        {"id": "ar_damage", "name": "Hot Load",        "max": 3, "per_level": 0.15, "desc": "Damage +15%"},
+        {"id": "ar_range",  "name": "Long Barrel",     "max": 2, "per_level": 0.15, "desc": "Range +15%"},
+        {"id": "ar_fire",   "name": "Incendiary",      "max": 2, "per_level": 6,    "desc": "Every 8th round ignites the ground where it stops"}
+      ],
+      "default_loadout": {"tap": "ar_burst", "swipe": "ar_grenade", "hold": "ar_suppress"},
+      "moves": [
+        {"id": "ar_grenade",   "name": "Grenade",          "desc": "Lob a grenade toward the target", "cooldown": 2.5, "reach": 320, "fuse": 0.5, "radius": 130, "damage": 45, "knock": 380},
+        {"id": "ar_burst",     "name": "Piercing Burst",   "desc": "Five armor-piercing rounds at the target", "cooldown": 1.0, "shots": 5, "damage": 14, "pierce": 6, "spread_deg": 4},
+        {"id": "ar_suppress",  "name": "Suppressive Fire", "desc": "A heavy 1.2 s stream toward the target", "cooldown": 5.0, "duration": 1.2, "interval": 0.03, "spread_deg": 12, "damage": 8, "pierce": 3},
+        {"id": "ar_airstrike", "name": "Airstrike",        "desc": "A line of explosions marching ahead", "cooldown": 8.0, "count": 6, "spacing": 110, "delay": 0.12, "radius": 110, "damage": 50, "knock": 400}
       ]
     }
   },
@@ -238,8 +390,7 @@
     {"id": "p_speed",  "name": "Swift Boots", "max": 5, "per_level": 0.07, "desc": "Move speed +7%"},
     {"id": "p_hp",     "name": "Vitality",    "max": 5, "per_level": 25,   "desc": "Max HP +25"},
     {"id": "p_regen",  "name": "Second Wind", "max": 5, "per_level": 0.6,  "desc": "Regenerate 0.6 HP/sec"},
-    {"id": "p_magnet", "name": "Attraction",  "max": 5, "per_level": 0.3,  "desc": "Pickup range +30%"},
-    {"id": "p_musou",  "name": "Fervor",      "max": 5, "per_level": 0.15, "desc": "Musou gauge gain +15%"}
+    {"id": "p_magnet", "name": "Attraction",  "max": 5, "per_level": 0.3,  "desc": "Pickup range +30%"}
   ],
   "max_subweapons": 3,
   "fallback_heal_frac": 0.3,
@@ -248,6 +399,7 @@
     "name": "IRONHORN",
     "max_hp": 14000,
     "body_radius": 86,
+    "rock_collision_radius": 30,
     "speed": 150,
     "turn_rate": 2.6,
     "aggro_range": 950,

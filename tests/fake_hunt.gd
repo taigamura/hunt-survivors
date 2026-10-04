@@ -12,6 +12,8 @@ var spawned: int = 0
 var slowed: float = 0.0
 var dmg_mult_value: float = 1.0
 var densest: Vector2 = Vector2(100, 0)
+var target: Vector2 = Vector2(100, 0)
+var subs: Dictionary = {}
 
 
 static func make(parent: Node) -> FakeHunt:
@@ -40,6 +42,32 @@ func hit_arc(c: Vector2, dir: Vector2, r: float, half: float, dmg: float, knock:
 func hit_line(a: Vector2, b: Vector2, w: float, dmg: float, knock: float, flags: int = 0) -> int:
 	hits.append({"shape": "line", "a": a, "b": b, "w": w, "dmg": dmg, "knock": knock, "flags": flags})
 	return 1
+
+
+func shoot(a: Vector2, dir: Vector2, reach: float, width: float, dmg: float, knock: float, pierce: int, flags: int = 0) -> Vector2:
+	hits.append({"shape": "shot", "a": a, "dir": dir, "range": reach, "w": width, "dmg": dmg, "knock": knock, "pierce": pierce, "flags": flags})
+	return a + dir * reach
+
+
+func auto_target(from: Vector2, max_range: float) -> Vector2:
+	return target if target != Vector2.INF and from.distance_to(target) <= max_range else Vector2.INF
+
+
+func nearest_in_arc(from: Vector2, max_range: float, dir: Vector2, half: float) -> Vector2:
+	if target == Vector2.INF or from.distance_to(target) > max_range:
+		return Vector2.INF
+	return target if absf(dir.angle_to(target - from)) <= half else Vector2.INF
+
+
+func chain_targets(from: Vector2, n: int, first_range: float, hop: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for k in n:
+		out.append(from + Vector2(60.0 * (k + 1), 0))
+	return out
+
+
+func sub_level(sub_id: String) -> int:
+	return int(subs.get(sub_id, 0))
 
 
 func hits_of(shape: String) -> Array[Dictionary]:

@@ -20,7 +20,7 @@ func test_every_referenced_color_id_exists() -> void:
 	# scan the source for ArtRegistry.color("...") / tint("...") / "fx.*" ids and make sure they're registered
 	var re := RegEx.new()
 	re.compile('"((?:fx|ui|outpost)\\.[a-z0-9_]+|xp\\.tier[0-9])"')
-	for dir in ["res://systems", "res://player/weapons", "res://player/subweapons", "res://monster", "res://musou", "res://ui", "res://scenes"]:
+	for dir in ["res://systems", "res://player/weapons", "res://player/subweapons", "res://monster", "res://ui", "res://scenes"]:
 		for f in DirAccess.get_files_at(dir):
 			if not f.ends_with(".gd"):
 				continue

@@ -6,7 +6,7 @@ config_version=5
 [application]
 
 config/name="Hunt Survivors"
-config/description="Portrait one-thumb survivors-like hunt prototype."
+config/description="Portrait survivors-like hunt prototype: one thumb moves, the other draws gesture moves."
 run/main_scene="res://ui/title.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"

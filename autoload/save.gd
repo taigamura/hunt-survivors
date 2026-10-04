@@ -1,9 +1,11 @@
 extends Node
-## Persists best KO count and fastest hunt per weapon, plus settings, to user://save.json.
+## Persists best KO count and fastest hunt per weapon, gesture loadouts, and settings to
+## user://save.json.
 
 const PATH := "user://save.json"
 
 var best: Dictionary = {}  # weapon -> {"kos": int, "time": float (0 = never won)}
+var loadouts: Dictionary = {}  # weapon -> {"tap": move_id, "swipe": move_id, "hold": move_id}
 
 
 func _ready() -> void:
@@ -18,10 +20,11 @@ func load_save() -> void:
 		return
 	var dct: Dictionary = parsed
 	best = dct.get("best", {})
+	loadouts = dct.get("loadouts", {})
 	var s: Dictionary = dct.get("settings", {})
 	GameState.shake_mode = int(s.get("shake_mode", 0))
 	GameState.haptics = bool(s.get("haptics", true))
-	GameState.musou_left = bool(s.get("musou_left", false))
+	GameState.stick_left = bool(s.get("stick_left", true))
 
 
 func write() -> void:
@@ -30,12 +33,23 @@ func write() -> void:
 		return
 	f.store_string(JSON.stringify({
 		"best": best,
+		"loadouts": loadouts,
 		"settings": {
 			"shake_mode": GameState.shake_mode,
 			"haptics": GameState.haptics,
-			"musou_left": GameState.musou_left,
+			"stick_left": GameState.stick_left,
 		},
 	}, "  "))
+
+
+## The weapon's saved tap/swipe/hold loadout, cleaned against the current move pool.
+func loadout_for(weapon: String) -> Dictionary:
+	return MoveSet.sanitize_loadout(weapon, loadouts.get(weapon, {}))
+
+
+func set_loadout(weapon: String, loadout: Dictionary) -> void:
+	loadouts[weapon] = MoveSet.sanitize_loadout(weapon, loadout)
+	write()
 
 
 func best_for(weapon: String) -> Dictionary:

@@ -1,7 +1,8 @@
 class_name TouchStick
 extends Control
-## Floating one-thumb joystick: touch anywhere in the lower 70% of the screen to set the
-## origin, drag to move, release to stop. Mouse drag works on desktop via touch emulation.
+## Floating move stick: touch anywhere in the lower 70% of the stick's half of the screen
+## (left by default; the other half is the GesturePad) to set the origin, drag to move,
+## release to stop. Mouse drag works on desktop via touch emulation.
 
 var radius: float = 90.0
 var zone_top: float = 0.3
@@ -9,6 +10,7 @@ var origin: Vector2 = Vector2.ZERO
 var current: Vector2 = Vector2.ZERO
 var touch_index: int = -1
 var blocked_rects: Array[Rect2] = []
+var stick_left: bool = true
 
 
 func _ready() -> void:
@@ -39,7 +41,10 @@ func _input(event: InputEvent) -> void:
 		var t := event as InputEventScreenTouch
 		if t.pressed and touch_index < 0:
 			var p := t.position
-			if p.y < get_viewport_rect().size.y * zone_top:
+			var vs := get_viewport_rect().size
+			if p.y < vs.y * zone_top:
+				return
+			if (p.x >= vs.x * 0.5) == stick_left:
 				return
 			for r in blocked_rects:
 				if r.has_point(p):

@@ -1,7 +1,7 @@
 extends Node
 ## Cross-scene state: chosen weapon, settings, last run results, safe-area helper.
 
-const WEAPONS: Array[String] = ["great_sword", "dual_blades"]
+const WEAPONS: Array[String] = ["great_sword", "dual_blades", "sword_shield", "pistol", "dual_pistols", "assault_rifle"]
 
 var selected_weapon: String = "great_sword"
 var last_result: Dictionary = {}
@@ -9,7 +9,7 @@ var last_result: Dictionary = {}
 ## settings (persisted by Save)
 var shake_mode: int = 0  # 0 = full, 1 = reduced, 2 = off
 var haptics: bool = true
-var musou_left: bool = false
+var stick_left: bool = true  ## move stick on the left half, gestures on the right
 
 
 func shake_mult() -> float:

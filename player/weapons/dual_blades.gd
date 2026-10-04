@@ -3,6 +3,8 @@ extends Weapon
 ## "Never stop moving." Full-deflection movement builds momentum (0..1); a whirl of blades
 ## scales with it. At full momentum you leave damaging afterimages. Whipping the stick
 ## back (>150 degrees) at high momentum triggers a dash cut.
+## Gesture moves: Dash Cut (any direction, spends momentum), Flurry, Shadow Step, Blade Vortex
+## (cashes in all momentum), X Slash.
 
 var build_time: float = 2.0
 var decay_per_sec: float = 1.6
@@ -119,12 +121,12 @@ func update(dt: float, move: Vector2) -> void:
 	burn.update(dt, hunt)
 
 
-func dash_cut(dir: Vector2) -> void:
+func dash_cut(dir: Vector2, power: float = 1.0) -> void:
 	var dist := float(dash_cfg["distance"])
 	var a := player.position
 	var b := a + dir * dist
 	var ignite := up("db_ignite")
-	var damage := dmg(float(dash_cfg["damage"])) * (1.0 + up_value("db_ignite"))
+	var damage := dmg(float(dash_cfg["damage"])) * (1.0 + up_value("db_ignite")) * power
 	player.start_dash(dir, dist, float(dash_cfg["duration"]))
 	hunt.hit_line(a, b, float(dash_cfg["width"]) * player.area_mult, damage, float(dash_cfg["knock"]), HuntContext.HIT_BIG)
 	hunt.fx_over.line(a, b, 26.0, "fx.dash", 0.22)
@@ -137,6 +139,67 @@ func dash_cut(dir: Vector2) -> void:
 			burn.add(a.lerp(b, k / float(steps)), 30.0 * player.area_mult, 2.2, dmg(5.0 + 3.0 * ignite))
 	dash_cd = float(dash_cfg["cooldown"])
 	dash_cuts += 1
+
+
+func perform_move(move_id: String, def: Dictionary, ctx: Dictionary) -> bool:
+	var dir: Vector2 = ctx["dir"]
+	var power := float(ctx["power"])
+	match move_id:
+		"db_aimed_dash":
+			if player.is_dashing():
+				return false
+			var strong := momentum >= float(def["min_momentum"])
+			dash_cut(dir, power * (1.0 if strong else float(def["weak_mult"])))
+			dash_cd = 0.0
+			momentum = maxf(0.0, momentum - float(def["momentum_cost"]))
+			return true
+		"db_flurry":
+			var r := float(def["radius"]) * player.area_mult * (1.0 + up_value("db_radius"))
+			var half := deg_to_rad(float(def["half_angle_deg"]))
+			for h in int(def["hits"]):
+				var d := dir.rotated((h - 1) * 0.35)
+				hunt.hit_arc(player.position, d, r, half, move_dmg(def, "damage", ctx), float(def["knock"]))
+				hunt.fx_over.arc(player.position, d, r, half * 0.7, "fx.whirl", 0.1 + 0.04 * h)
+			momentum = minf(1.0, momentum + float(def["momentum_gain"]))
+			return true
+		"db_shadow":
+			if player.is_dashing():
+				return false
+			var a := player.position
+			var b := target_point(ctx, float(def["distance"]))
+			if a.distance_to(b) > float(def["distance"]):
+				b = a + (b - a).normalized() * float(def["distance"])
+			if a.distance_to(b) < 1.0:
+				b = a + dir * float(def["distance"])
+			player.start_dash((b - a).normalized(), a.distance_to(b), float(def["duration"]))
+			player.iframes = maxf(player.iframes, float(def["duration"]) + 0.2)
+			hunt.hit_line(a, b, float(def["width"]) * player.area_mult, move_dmg(def, "damage", ctx), 260.0, HuntContext.HIT_BIG)
+			hunt.fx_over.line(a, b, 22.0, "fx.dash", 0.25)
+			var n := int(def["afterimages"])
+			for k in n:
+				trail.add(a.lerp(b, float(k) / maxf(1.0, n - 1)), float(trail_cfg["radius"]) * player.area_mult, float(trail_cfg["life"]) * 2.0, dmg(float(trail_cfg["damage"])) * power)
+			hunt.haptic("dash_cut")
+			return true
+		"db_vortex":
+			var r := (float(def["radius"]) + float(def["radius_per_momentum"]) * momentum) * player.area_mult
+			var d := dmg(float(def["damage"]) + float(def["damage_per_momentum"]) * momentum) * power
+			hunt.hit_circle(player.position, r, d, float(def["knock"]), HuntContext.HIT_BIG)
+			hunt.fx_over.ring(player.position, r, "fx.whirl", 0.35, 18.0, 0.6)
+			hunt.fx_over.arc(player.position, Vector2.from_angle(spin), r, PI, "fx.whirl", 0.25)
+			hunt.add_shake(0.3 + 0.4 * momentum)
+			momentum = 0.0
+			return true
+		"db_xslash":
+			var c := target_point(ctx, float(def["length"]) * 0.5)
+			var half_len := float(def["length"]) * 0.5
+			var w := float(def["width"]) * player.area_mult
+			for sgn in [-1.0, 1.0]:
+				var d := dir.rotated(sgn * PI * 0.25)
+				hunt.hit_line(c - d * half_len, c + d * half_len, w, move_dmg(def, "damage", ctx), float(def["knock"]), HuntContext.HIT_BIG)
+				hunt.fx_over.line(c - d * half_len, c + d * half_len, 18.0, "fx.dash", 0.25)
+			hunt.add_shake(0.25)
+			return true
+	return super.perform_move(move_id, def, ctx)
 
 
 func draw_local(ci: CanvasItem) -> void:

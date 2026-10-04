@@ -1,13 +1,15 @@
 class_name PauseMenu
 extends CanvasLayer
-## Resume / settings (screen shake, haptics, Musou button side) / quit to title.
+## Resume / your gesture bindings / settings (screen shake, haptics, move-stick side) / quit.
 
 signal resumed
 signal quit_requested
+signal side_changed
 
 var _shake_btn: Button
 var _haptic_btn: Button
 var _side_btn: Button
+var _gestures_lbl: Label
 
 
 func _ready() -> void:
@@ -27,6 +29,8 @@ func _ready() -> void:
 	var resume := UIKit.button("Resume", 36, true)
 	resume.pressed.connect(func() -> void: resumed.emit())
 	v.add_child(resume)
+	_gestures_lbl = UIKit.label("", 24, "ui.text", HORIZONTAL_ALIGNMENT_CENTER, true)
+	v.add_child(_gestures_lbl)
 	v.add_child(UIKit.label("Settings", 26, "ui.text_dim"))
 	_shake_btn = UIKit.button("", 30)
 	_shake_btn.pressed.connect(func() -> void:
@@ -40,7 +44,8 @@ func _ready() -> void:
 	v.add_child(_haptic_btn)
 	_side_btn = UIKit.button("", 30)
 	_side_btn.pressed.connect(func() -> void:
-		GameState.musou_left = not GameState.musou_left
+		GameState.stick_left = not GameState.stick_left
+		side_changed.emit()
 		_refresh())
 	v.add_child(_side_btn)
 	var spacer := Control.new()
@@ -53,7 +58,10 @@ func _ready() -> void:
 	_refresh()
 
 
-func open() -> void:
+## `gestures`: one line per bound gesture, e.g. "TAP  Tackle  Lv 2".
+func open(gestures: String = "") -> void:
+	_gestures_lbl.text = gestures
+	_gestures_lbl.visible = gestures != ""
 	_refresh()
 	visible = true
 
@@ -68,4 +76,4 @@ func _refresh() -> void:
 		return
 	_shake_btn.text = "Screen Shake: %s" % GameState.shake_label()
 	_haptic_btn.text = "Haptics: %s" % ("On" if GameState.haptics else "Off")
-	_side_btn.text = "Musou Button: %s" % ("Left" if GameState.musou_left else "Right")
+	_side_btn.text = "Move Stick: %s" % ("Left" if GameState.stick_left else "Right")

@@ -43,3 +43,7 @@ godot --headless --path . --fixed-fps 60 res://scenes/benchmark.tscn
 - Not yet measured on a physical iPhone. Recent A-series cores are generally in the same class as (or faster than) this VM's per-core speed, so 1,500 enemies at 60 fps is the expectation — confirm with the debug fps / enemy-count line (debug builds) before raising `spawner.target_alive`.
 - The swarm draws in ~4 batched draw calls regardless of count; the per-frame CPU→GPU upload is ~96 KB per type at the 2,000 cap.
 - If you need more headroom later, `EnemySystem` exposes a narrow API (`spawn`, `despawn`, `damage`, `kill`, `rout_squad`, `query_*`, `step`) designed to be ported to a GDExtension (C++) without touching gameplay code.
+
+## Per-weapon cost (2026-10-04, after the gesture/new-weapon update)
+
+`benchmark.tscn -- weapon=<id>` swaps the benchmark's main weapon (default `dual_blades`). At 1,500 enemies on the Ryzen 7 3700X dev box (under background load), the weapons slice of the frame is small for every weapon: Bulwark 0.03 ms, Hand Cannon 0.04, Dual Blades 0.04, Twin Fangs 0.10, Assault Rifle 0.16 (vs ~4.6 ms for the swarm step). Guns are hitscan (`HuntContext.shoot` = one `query_line` + a partial sort by distance), and they only run range queries when a round is due. Gesture moves are not exercised by the benchmark; the heaviest (Gun Kata: 8 rounds every 0.1 s) is about 8 line queries on its firing frames.

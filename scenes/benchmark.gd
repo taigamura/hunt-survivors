@@ -1,6 +1,6 @@
 extends Node
 ## Headless swarm benchmark.
-##   godot --headless --path . --fixed-fps 60 res://scenes/benchmark.tscn
+##   godot --headless --path . --fixed-fps 60 res://scenes/benchmark.tscn [-- weapon=assault_rifle]
 ## For each enemy count it fills the swarm around a hunter who runs a circle with Dual Blades
 ## (continuous whirl) + Orbiting Shards + Thunder Call firing, keeps the count topped up,
 ## runs 10 s of simulated time, and reports average / p95 per-frame cost:
@@ -27,7 +27,11 @@ var angle: float = 0.0
 
 func _ready() -> void:
 	hunt = Hunt.new()
-	hunt.config = {"mode": "bench", "weapon": "dual_blades", "seed": 42, "god": true, "bot": false, "arrive_time": 1e9}
+	var weapon := "dual_blades"
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("weapon="):
+			weapon = a.substr(7)
+	hunt.config = {"mode": "bench", "weapon": weapon, "seed": 42, "god": true, "bot": false, "arrive_time": 1e9}
 	hunt.input_override = _circle_input
 	add_child(hunt)
 	# give the hunter a realistic mid-game kit
@@ -88,7 +92,7 @@ func _finish_run() -> void:
 		"kos": hunt.kos,
 	}
 	results.append(r)
-	print("  diag: ended=%s musou=%.2f pos=%s paused=%s weapons=%d frames=%d" % [hunt.ended, hunt.musou_timer, hunt.player.position, get_tree().paused, hunt.player.weapons.size(), hunt.frames])
+	print("  diag: ended=%s pos=%s paused=%s weapons=%d frames=%d" % [hunt.ended, hunt.player.position, get_tree().paused, hunt.player.weapons.size(), hunt.frames])
 	print("BENCH %4d enemies | sim avg %.2f ms  p95 %.2f ms  (weapons %.2f, field %.2f, step %.2f) | render avg %.2f ms  p95 %.2f ms" % [
 		n, r["sim_avg_ms"], r["sim_p95_ms"], r["weapons_avg_ms"], r["field_avg_ms"], r["step_avg_ms"], r["render_avg_ms"], r["render_p95_ms"]])
 	count_idx += 1

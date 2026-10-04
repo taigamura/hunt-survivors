@@ -2,12 +2,13 @@ class_name Hunt
 extends HuntContext
 ## One hunt (run). Orchestrates every system explicitly each frame, in a fixed order, so
 ## timing is deterministic and measurable:
-##   input -> player -> weapons -> flow field -> swarm -> monster -> outposts -> XP -> spawner
-##   -> timeline -> FX -> camera -> HUD
+##   input -> gestures (moves) -> player -> weapons -> flow field -> swarm -> monster -> outposts
+##   -> XP -> spawner -> timeline -> FX -> camera -> HUD
 ##
 ## config keys (all optional):
-##   mode: "play" | "bench" | "smoke"   weapon: "great_sword" | "dual_blades"
+##   mode: "play" | "bench" | "smoke"   weapon: any id in GameState.WEAPONS
 ##   seed: int   bot: bool   god: bool   arrive_time: float   auto_pick: bool
+##   loadout: {"tap": move_id, "swipe": move_id, "hold": move_id}
 
 signal run_ended(won: bool)
 
@@ -28,7 +29,7 @@ var outposts: Outposts
 var spawner: Spawner
 var progression: Progression
 var pool: UpgradePool
-var musou: MusouGauge
+var moves: MoveSet
 var main_weapon: Weapon
 var bot: BotInput
 ## Optional scripted input (benchmark): Callable(dt: float) -> Vector2
@@ -36,6 +37,7 @@ var input_override: Callable = Callable()
 
 var hud: HUD
 var joystick: TouchStick
+var gestures: GesturePad
 var level_ui: LevelUpUI
 var pause_ui: PauseMenu
 
@@ -57,12 +59,12 @@ var end_reason: String = ""
 var end_timer: float = 0.0
 var god: bool = false
 var auto_pick: bool = false
+var perfects: int = 0
 
-# musou state
-var musou_timer: float = 0.0
-var musou_beat: float = 0.0
-var musou_beats_done: int = 0
-var musou_blasts: int = 0
+# gestures waiting to run this frame (from the pad, the bot, the keyboard or tests)
+var _gesture_queue: Array[Dictionary] = []
+var _perfect_window: float = 0.3
+var _perfect_mult: float = 1.5
 
 # juice
 var shake: float = 0.0
@@ -113,6 +115,8 @@ func _ready() -> void:
 	_death_particles = Tuning.i("juice.death_particles", 3)
 	_dot_monster_mult = Tuning.f("monster.dot_damage_mult", 0.3)
 	_milestones = Tuning.a("ko_milestones")
+	_perfect_window = Tuning.f("gestures.perfect_window", 0.3)
+	_perfect_mult = Tuning.f("gestures.perfect_mult", 1.5)
 	if bool(config.get("bot", mode != "play")):
 		bot = BotInput.new(int(config.get("seed", 1)) + 7, weapon_id)
 	_build_world()
@@ -201,16 +205,18 @@ func _build_world() -> void:
 	add_child(dmgnums)
 	dmgnums.setup(Tuning.i("juice.damage_number_cap", 60), Tuning.f("juice.damage_number_life", 0.6))
 
-	main_weapon = GreatSword.new() if weapon_id == "great_sword" else DualBlades.new()
+	main_weapon = WeaponFactory.make(weapon_id)
 	main_weapon.setup(self, player)
 	player.weapons = [main_weapon]
+	# guns kill far away, so their XP lands far away: they get a bigger pickup magnet
+	player.magnet_radius *= Tuning.f("weapons.%s.magnet_mult" % weapon_id, 1.0)
+	moves = MoveSet.new()
+	moves.setup(main_weapon, player, config.get("loadout", Save.loadout_for(weapon_id)))
 
 	progression = Progression.new()
 	progression.setup()
 	pool = UpgradePool.new()
-	pool.setup(self, player, main_weapon)
-	musou = MusouGauge.new()
-	musou.setup()
+	pool.setup(self, player, main_weapon, moves)
 
 	spawner = Spawner.new()
 	spawner.setup(enemies, field, outposts, rng, map_rect)
@@ -270,12 +276,19 @@ func _build_ui() -> void:
 	hud_layer.layer = 10
 	add_child(hud_layer)
 	joystick = TouchStick.new()
+	joystick.stick_left = GameState.stick_left
 	hud_layer.add_child(joystick)
+	gestures = GesturePad.new()
+	gestures.stick_left = GameState.stick_left
+	hud_layer.add_child(gestures)
+	gestures.gestured.connect(func(ev: Dictionary) -> void: _gesture_queue.append(ev))
+	gestures.hold_started.connect(_on_hold_started)
 	hud = HUD.new()
 	hud.hunt = self
 	hud_layer.add_child(hud)
 	hud.layout()
 	joystick.blocked_rects = hud.blocked_rects()
+	gestures.blocked_rects = hud.blocked_rects()
 
 	level_ui = LevelUpUI.new()
 	add_child(level_ui)
@@ -285,6 +298,9 @@ func _build_ui() -> void:
 	add_child(pause_ui)
 	pause_ui.resumed.connect(toggle_pause)
 	pause_ui.quit_requested.connect(_quit_to_title)
+	pause_ui.side_changed.connect(func() -> void:
+		joystick.stick_left = GameState.stick_left
+		gestures.stick_left = GameState.stick_left)
 
 
 # =============================================================== frame
@@ -309,14 +325,16 @@ func _process(delta: float) -> void:
 	run_time += dt
 	_frame_kills = 0
 	var input := _gather_input(dt)
-	if musou_timer > 0.0:
-		input = Vector2.ZERO
+	if bot != null:
+		for ev in bot.next_gestures(dt, self):
+			_gesture_queue.append(ev)
+	moves.tick(dt)
+	_process_gestures()
 	player.move_step(dt, input)
 
 	var t0 := Time.get_ticks_usec()
-	if musou_timer <= 0.0:
-		for w in player.weapons:
-			w.update(dt, input)
+	for w in player.weapons:
+		w.update(dt, input)
 	var t1 := Time.get_ticks_usec()
 	field.update(player.position)
 	enemies.target = player.position
@@ -333,7 +351,7 @@ func _process(delta: float) -> void:
 	if not god:
 		var cd := enemies.contact_damage(player.position, player.radius)
 		if cd > 0.0:
-			damage_player(cd, player.position)
+			damage_player(cd, enemies.last_contact_pos)
 
 	if monster != null:
 		monster.update(dt)
@@ -350,9 +368,6 @@ func _process(delta: float) -> void:
 		progression.add_xp(got)
 		max_level = progression.level
 
-	musou.tick(dt)
-	if musou_timer > 0.0:
-		_musou_tick(dt)
 
 	for ev in spawner.update(dt, run_time, player.position, player.move_dir if player.is_moving() else Vector2.ZERO):
 		match ev:
@@ -374,10 +389,9 @@ func _process(delta: float) -> void:
 	_monster_num_clock += dt
 	_update_camera(dt)
 	joystick.blocked_rects = hud.blocked_rects()
+	gestures.blocked_rects = joystick.blocked_rects
 	hud.step(dt)
 
-	if bot != null and musou.is_full():
-		request_musou()
 	if progression.pending > 0 and not ended and not level_ui.is_open():
 		_open_level_up()
 
@@ -413,10 +427,24 @@ static func shape_input(raw: Vector2, dead_zone: float, full_at: float) -> Vecto
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
 		var k := (event as InputEventKey).physical_keycode
-		if k == KEY_SPACE:
-			request_musou()
-		elif k == KEY_ESCAPE:
-			toggle_pause()
+		match k:
+			KEY_ESCAPE:
+				toggle_pause()
+			# desktop stand-ins for the gesture thumb
+			KEY_J:
+				_gesture_queue.append({"kind": "tap"})
+			KEY_K:
+				_gesture_queue.append({"kind": "swipe", "dir": player.facing})
+			KEY_L:
+				_gesture_queue.append({"kind": "hold", "dir": player.facing, "hold_time": 0.8})
+			KEY_1:
+				_gesture_queue.append({"kind": "circle"})
+			KEY_2:
+				_gesture_queue.append({"kind": "v", "dir": player.facing})
+			KEY_3:
+				_gesture_queue.append({"kind": "zigzag", "dir": player.facing})
+			KEY_4:
+				_gesture_queue.append({"kind": "triangle"})
 
 
 func _update_camera(dt: float) -> void:
@@ -498,6 +526,8 @@ func end_run(p_won: bool, reason: String) -> void:
 		"outposts_total": outposts.positions.size(),
 		"parts": parts_broken,
 		"level": progression.level,
+		"moves": moves.performed,
+		"perfects": perfects,
 		"new_kos": false,
 		"new_time": false,
 	}
@@ -570,6 +600,95 @@ func hit_line(a: Vector2, b: Vector2, w: float, dmg: float, knock: float, flags:
 	return ids.size()
 
 
+func shoot(a: Vector2, dir: Vector2, reach: float, width: float, dmg: float, knock: float, pierce: int, flags: int = 0) -> Vector2:
+	var t_mon := INF
+	if monster != null and (flags & HIT_NO_MONSTER) == 0:
+		t_mon = monster.ray_entry(a, dir, width)
+	var stop := minf(reach, t_mon)
+	var cands := enemies.query_line(a, a + dir * stop, width)
+	var ts := PackedFloat32Array()
+	ts.resize(cands.size())
+	for k in cands.size():
+		ts[k] = (enemies.pos[cands[k]] - a).dot(dir)
+	# nearest `pierce` along the ray (selection: pierce is small)
+	var hit := PackedInt32Array()
+	var end_t := stop
+	for h in mini(pierce, cands.size()):
+		var best := -1
+		for k in cands.size():
+			if ts[k] < INF and (best < 0 or ts[k] < ts[best]):
+				best = k
+		hit.append(cands[best])
+		if hit.size() == pierce:
+			end_t = maxf(0.0, ts[best])
+		ts[best] = INF
+	_apply_hits(hit, a, dmg, knock, flags, dir)
+	if hit.size() < pierce and t_mon <= reach:
+		_hit_monster(Ironhorn.SHAPE_LINE, a, a + dir * (t_mon + width * 2.0), width, dir, 0.0, dmg, flags)
+	return a + dir * end_t
+
+
+func auto_target(from: Vector2, max_range: float) -> Vector2:
+	if monster != null and monster.is_alive() and monster.position.distance_to(from) <= max_range + monster.body_radius:
+		return monster.aim_point(from)
+	var best := Vector2.INF
+	var best_d := INF
+	for i in enemies.query_circle(from, max_range, false):
+		var d := enemies.pos[i].distance_squared_to(from)
+		if d < best_d:
+			best_d = d
+			best = enemies.pos[i]
+	return best
+
+
+func nearest_in_arc(from: Vector2, max_range: float, dir: Vector2, half: float) -> Vector2:
+	var best := Vector2.INF
+	var best_d := INF
+	if monster != null and monster.is_alive():
+		var mp := monster.aim_point(from)
+		var md := mp.distance_squared_to(from)
+		if md <= max_range * max_range and absf(dir.angle_to(mp - from)) <= half:
+			best = mp
+			best_d = md
+	for i in enemies.query_arc(from, max_range, dir, half):
+		if enemies.flee[i] > 0.0:
+			continue
+		var d := enemies.pos[i].distance_squared_to(from)
+		if d < best_d:
+			best_d = d
+			best = enemies.pos[i]
+	return best
+
+
+func chain_targets(from: Vector2, n: int, first_range: float, hop: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var used := {}
+	var cur := from
+	var reach := first_range
+	for k in n:
+		var best := -1
+		var best_d := INF
+		for i in enemies.query_circle(cur, reach, false):
+			if used.has(i):
+				continue
+			var d := enemies.pos[i].distance_squared_to(cur)
+			if d < best_d:
+				best_d = d
+				best = i
+		if best < 0:
+			break
+		used[best] = true
+		cur = enemies.pos[best]
+		out.append(cur)
+		reach = hop
+	return out
+
+
+func sub_level(sub_id: String) -> int:
+	var s := pool.sub_by_id(sub_id)
+	return s.level if s != null else 0
+
+
 func densest_point(center: Vector2, max_range: float, samples: int, radius: float) -> Vector2:
 	var cands := enemies.query_circle(center, max_range, false)
 	var best := Vector2.INF
@@ -628,7 +747,7 @@ func kill_enemies_in_circle(c: Vector2, r: float, cause: int) -> int:
 func damage_player(amount: float, from: Vector2) -> bool:
 	if god or ended:
 		return false
-	amount *= main_weapon.damage_taken_mult()
+	amount = main_weapon.modify_incoming(amount, from)
 	if not player.take_damage(amount):
 		return false
 	hud.hurt()
@@ -671,21 +790,17 @@ func _on_enemy_killed(i: int, p: Vector2, type: int, cause: int) -> void:
 	kos += 1
 	_frame_kills += 1
 	xp.spawn(p, enemies.t_xp[type])
-	if cause != EnemySystem.CAUSE_MUSOU:  # a Musou blast never refills its own gauge
-		musou.add(float(enemies.t_musou[type]), player.musou_mult)
 	if particles.alive < particles.cap - 20:
 		particles.burst(p, enemies.t_tint[type], _death_particles, 150.0, 6.0)
 	if type == EnemySystem.T_OFFICER:
 		officers_defeated += 1
-		if cause != EnemySystem.CAUSE_MUSOU:
-			musou.add(Tuning.f("musou.gain_officer_bonus", 15.0), player.musou_mult)
 		var routed := enemies.rout_squad(enemies.squad[i])
 		for r in routed:
 			xp.spawn(enemies.pos[r], enemies.t_xp[enemies.etype[r]])
 		kos += routed.size()
 		hud.banner("OFFICER DEFEATED!", "ui.accent", 1.4)
 		particles.burst(p, ArtRegistry.color("ui.accent"), 16, 260.0, 9.0, 0.6)
-		fx_over.ring(p, 120.0, "fx.musou", 0.4, 10.0, 0.7)
+		fx_over.ring(p, 120.0, "fx.gold", 0.4, 10.0, 0.7)
 		add_shake(0.3)
 		haptic("dash_cut")
 	_check_milestone()
@@ -702,14 +817,13 @@ func _on_outpost_captured(k: int) -> void:
 	var flag := get_node_or_null("OutpostFlag%d" % k) as Sprite2D
 	if flag != null:
 		flag.modulate = ArtRegistry.color("outpost.captured")
-	fx_over.ring(outposts.positions[k], outposts.radius, "fx.musou", 0.6, 14.0, 0.5)
+	fx_over.ring(outposts.positions[k], outposts.radius, "fx.gold", 0.6, 14.0, 0.5)
 	particles.burst(outposts.positions[k], ArtRegistry.color("outpost.captured"), 20, 260.0, 8.0, 0.6)
 	add_shake(0.25)
 
 
 func on_monster_part_broken(part: String, at: Vector2) -> void:
 	parts_broken += 1
-	musou.add(Tuning.f("musou.gain_part_break", 60.0), player.musou_mult)
 	var xpv := Tuning.i("monster.part_break_xp", 30)
 	for k in 6:
 		xp.spawn(at + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(10, 90), xpv / 6)
@@ -723,7 +837,7 @@ func on_monster_part_broken(part: String, at: Vector2) -> void:
 
 func on_monster_died(at: Vector2) -> void:
 	particles.burst(at, ArtRegistry.color("fx.part_break"), 60, 520.0, 12.0, 0.9)
-	fx_over.ring(at, 260.0, "fx.musou", 0.8, 24.0, 0.8)
+	fx_over.ring(at, 260.0, "fx.gold", 0.8, 24.0, 0.8)
 	add_shake(1.0)
 	_slowmo(0.3, 600)
 	haptic("part_break")
@@ -735,84 +849,106 @@ func on_monster_died(at: Vector2) -> void:
 	end_run(true, "slain")
 
 
-# =============================================================== musou
+# =============================================================== gestures
 
-func request_musou() -> void:
-	if ended or musou_timer > 0.0 or get_tree().paused:
+## Queue a gesture from outside the pad (bot, keyboard, tests). World-space:
+##   {"kind": String, "dir": Vector2 (unit or ZERO = auto-aim), "hold_time": float}
+func inject_gesture(ev: Dictionary) -> void:
+	_gesture_queue.append(ev)
+
+
+func _process_gestures() -> void:
+	if _gesture_queue.is_empty():
 		return
-	if not musou.trigger():
+	var queue := _gesture_queue
+	_gesture_queue = []
+	for ev in queue:
+		perform_gesture(ev)
+
+
+## Move context: the stroke's direction when the gesture has one, else auto-aim.
+func gesture_ctx(ev: Dictionary) -> Dictionary:
+	var kind := String(ev.get("kind", ""))
+	var dir: Vector2 = ev.get("dir", Vector2.ZERO)
+	var target := auto_target(player.position, 700.0)
+	var aimed := dir != Vector2.ZERO and kind in ["swipe", "hold", "v", "zigzag"]
+	if not aimed:
+		dir = player.facing
+		if target != Vector2.INF and target.distance_to(player.position) > 1.0:
+			dir = (target - player.position).normalized()
+	return {"kind": kind, "dir": dir.normalized(), "aimed": aimed, "target": target,
+		"hold_time": float(ev.get("hold_time", 0.0)), "power": 1.0, "perfect": false}
+
+
+## Runs the move bound to a gesture. A move fired in the last moments of a monster telegraph
+## that would hit you is a PERFECT counter: the attack is cancelled and the move hits harder.
+## Returns the MoveSet result ("ok", "cooldown", "unbound", "failed") or "unknown".
+func perform_gesture(ev: Dictionary) -> String:
+	if ended:
+		return "ended"
+	var kind := String(ev.get("kind", ""))
+	if kind == "":
+		_pad_feedback("?", "ui.text_dim")
+		return "unknown"
+	var ctx := gesture_ctx(ev)
+	var move_id := moves.move_for(kind)
+	var perfect := false
+	if move_id != "" and moves.cooldown_left(move_id) <= 0.0 and monster != null and monster.is_alive():
+		perfect = monster.counter_window(player.position, player.radius + 40.0, _perfect_window)
+	if perfect:
+		ctx["perfect"] = true
+		ctx["power"] = _perfect_mult
+	var res := moves.trigger(ctx)
+	var nm := String(moves.def_of(move_id).get("name", move_id)).to_upper()
+	match res:
+		"ok":
+			if perfect:
+				_on_perfect()
+				_pad_feedback("PERFECT! " + nm, "ui.accent")
+			else:
+				_pad_feedback(nm, "ui.text")
+		"cooldown":
+			if kind == "hold":
+				main_weapon.cancel_hold()
+			_pad_feedback("%.1fs" % moves.cooldown_left(move_id), "ui.text_dim")
+		"unbound":
+			_pad_feedback("%s: LOCKED" % MoveSet.gesture_label(kind), "ui.text_dim")
+		"failed":
+			_pad_feedback(nm + ": NOT READY", "ui.text_dim")
+	return res
+
+
+## "TAP  Tackle  Lv 1" lines for the pause menu.
+func gesture_summary() -> String:
+	var lines: PackedStringArray = []
+	for kind in moves.bound_gestures():
+		var id := moves.move_for(kind)
+		lines.append("%s   %s   Lv %d" % [MoveSet.gesture_label(kind), String(moves.def_of(id).get("name", id)), moves.level_of(id)])
+	return "\n".join(lines)
+
+
+func _on_hold_started() -> void:
+	if ended or get_tree().paused:
 		return
-	musou_timer = Tuning.f("musou.duration", 1.5)
-	musou_beat = 0.0
-	musou_beats_done = 0
-	player.invuln = true
-	_slowmo(Tuning.f("musou.slowmo_scale", 0.25), int(Tuning.f("musou.slowmo_real_sec", 0.45) * 1000.0))
-	hud.banner("MUSOU!", "ui.accent", 1.2)
-	hud.flash_screen(0.35)
-	add_shake(0.4)
-	haptic("musou")
+	moves.begin_hold(gesture_ctx({"kind": "hold"}))
 
 
-func _musou_tick(dt: float) -> void:
-	var dur := Tuning.f("musou.duration", 1.5)
-	musou_timer -= dt
-	musou_beat += dt
-	if weapon_id == "dual_blades":
-		var n := Tuning.i("musou.db_dash_count", 6)
-		var interval := dur / float(n + 1)
-		while musou_beats_done < n and musou_beat >= interval * (musou_beats_done + 1):
-			musou_beats_done += 1
-			var vr := view_rect_world()
-			var a := rng.randf() * TAU
-			var half := vr.size.length() * 0.5
-			var center := player.position + Vector2(rng.randf_range(-120, 120), rng.randf_range(-200, 200))
-			var p0 := center - Vector2.from_angle(a) * half
-			var p1 := center + Vector2.from_angle(a) * half
-			hit_line(p0, p1, 50.0, 60.0 * damage_mult(), 400.0, HIT_BIG)
-			fx_over.line(p0, p1, 34.0, "fx.dash", 0.3)
-			fx_over.line(p0, p1, 10.0, "fx.musou", 0.4)
-			add_shake(0.3)
-	else:
-		# Great Sword: gather power, then one giant slam
-		if musou_beat >= 0.2 * (musou_beats_done + 1) and musou_beats_done < 6:
-			musou_beats_done += 1
-			fx_over.ring(player.position, 260.0 - musou_beats_done * 30.0, "fx.musou", 0.25, 8.0, -0.4)
-	if musou_timer <= 0.0:
-		_musou_blast()
+func _on_perfect() -> void:
+	perfects += 1
+	moves.perfects += 1
+	monster.interrupt(Tuning.f("gestures.perfect_recover", 0.4))
+	player.iframes = maxf(player.iframes, Tuning.f("gestures.perfect_iframes", 0.7))
+	hud.banner("PERFECT COUNTER!", "ui.accent", 1.2)
+	fx_over.ring(player.position, 140.0, "fx.gold", 0.35, 12.0, 0.8)
+	particles.burst(player.position, ArtRegistry.color("fx.gold"), 18, 320.0, 8.0, 0.5)
+	_slowmo(Tuning.f("gestures.perfect_slowmo", 0.35), Tuning.i("gestures.perfect_slowmo_ms", 260))
+	add_shake(0.5)
+	haptic("perfect")
 
 
-func _musou_blast() -> void:
-	musou_timer = 0.0
-	musou_blasts += 1
-	var vr := view_rect_world().grow(Tuning.f("musou.blast_margin", 80.0))
-	var victims := PackedInt32Array()
-	for k in enemies.n_active:
-		var i := enemies.active[k]
-		if vr.has_point(enemies.pos[i]):
-			victims.append(i)
-	var popups := 0
-	for i in victims:
-		if popups < 18 and rng.randf() < 0.25:
-			dmgnums.add(enemies.pos[i], "KO!", ArtRegistry.color("ui.ko_popup"), 26, true)
-			popups += 1
-		enemies.kill(i, EnemySystem.CAUSE_MUSOU)
-	if monster != null and monster.is_alive() and monster.position.distance_to(player.position) <= Tuning.f("musou.monster_range", 1000.0):
-		var dealt := monster.apply_damage(monster.max_hp * Tuning.f("musou.monster_damage_frac", 0.06))
-		dmgnums.add(monster.position, str(int(dealt)), ArtRegistry.color("ui.damage_num_monster"), 40, true)
-	var r := vr.size.length() * 0.5
-	if weapon_id == "great_sword":
-		fx_over.ring(player.position, r, "fx.musou", 0.7, 60.0, 0.9)
-		fx_over.ring(player.position, r * 0.6, "fx.shockwave", 0.6, 40.0, 0.9)
-		fx_over.line(player.position + Vector2(0, -900), player.position, 70.0, "fx.slash_gs3", 0.35)
-	else:
-		fx_over.ring(player.position, r, "fx.dash", 0.6, 40.0, 0.9)
-	particles.burst(player.position, ArtRegistry.color("fx.musou"), 40, 700.0, 10.0, 0.8)
-	hud.flash_screen(0.9)
-	add_shake(1.0)
-	hitstop(80)
-	haptic("musou")
-	xp.attract_all()
-	player.invuln = false
+func _pad_feedback(text: String, color_id: String) -> void:
+	if gestures != null:
+		gestures.feedback(text, ArtRegistry.color(color_id))
 
 
 # =============================================================== level-ups & pause
@@ -820,11 +956,13 @@ func _musou_blast() -> void:
 func _open_level_up() -> void:
 	if not progression.take_pending():
 		return
-	var opts := pool.roll(rng)
+	var opts := pool.roll(rng, 3, progression.level - progression.pending)
 	if auto_pick:
 		pool.apply(opts[rng.randi() % opts.size()])
 		return
 	joystick.reset()
+	gestures.reset()
+	main_weapon.cancel_hold()
 	get_tree().paused = true
 	level_ui.show_options(opts, progression.level - progression.pending)
 
@@ -832,12 +970,13 @@ func _open_level_up() -> void:
 func _on_upgrade_picked(opt: Dictionary) -> void:
 	pool.apply(opt)
 	if progression.pending > 0:
-		var opts := pool.roll(rng)
+		var opts := pool.roll(rng, 3, progression.level - progression.pending + 1)
 		progression.take_pending()
 		level_ui.show_options(opts, progression.level - progression.pending)
 	else:
 		get_tree().paused = false
 		joystick.reset()
+		gestures.reset()
 
 
 func toggle_pause() -> void:
@@ -847,9 +986,12 @@ func toggle_pause() -> void:
 		pause_ui.close()
 		get_tree().paused = false
 		joystick.reset()
+		gestures.reset()
 	else:
 		get_tree().paused = true
-		pause_ui.open()
+		gestures.reset()
+		main_weapon.cancel_hold()
+		pause_ui.open(gesture_summary())
 
 
 func _quit_to_title() -> void:
@@ -862,10 +1004,31 @@ func _quit_to_title() -> void:
 
 func _draw_under(ci: CanvasItem) -> void:
 	outposts.draw(ci)
+	_draw_hold_aim(ci)
 	for w in player.weapons:
 		w.draw_world_under(ci)
 	if monster != null:
 		monster.draw_world_under(ci)
+
+
+## While the gesture thumb is held: an aim arrow from the hunter (or a ring = auto-aim).
+func _draw_hold_aim(ci: CanvasItem) -> void:
+	if gestures == null or not gestures.holding:
+		return
+	var col := ArtRegistry.color("fx.aim")
+	var aim := gestures.hold_aim()
+	var p := player.position
+	if aim == Vector2.ZERO:
+		ci.draw_arc(p, player.radius + 30.0, 0.0, TAU, 40, col, 3.0)
+		return
+	var length := 260.0
+	var k := 0.0
+	while k < length:
+		ci.draw_line(p + aim * (player.radius + 12.0 + k), p + aim * (player.radius + 12.0 + minf(k + 18.0, length)), col, 5.0)
+		k += 30.0
+	var tip := p + aim * (player.radius + 12.0 + length)
+	var side := aim.orthogonal() * 14.0
+	ci.draw_colored_polygon(PackedVector2Array([tip + aim * 22.0, tip + side, tip - side]), col)
 
 
 # =============================================================== bench helpers

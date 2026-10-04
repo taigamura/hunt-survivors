@@ -1,13 +1,24 @@
 # Hunt Survivors
 
-A portrait, one-thumb survivors-like prototype for iPhone, built in **Godot 4.7** (GDScript, Mobile renderer).
+A portrait survivors-like prototype for iPhone, built in **Godot 4.7** (GDScript, Mobile renderer). **One thumb is enough to play; two thumbs let you master it.**
 
-Each run is a **hunt**: mow through Musou-scale swarms (1,500+ enemies on screen) to level up, but you win by killing **Ironhorn**, a large monster with breakable horns, tail and back. Your **movement is your combo input**:
+Each run is a **hunt**: mow through swarms of 1,500+ enemies to level up, but you win by killing **Ironhorn**, a large monster with breakable horns, tail and back.
 
-- **Great Sword — plant your feet.** Stand still to charge three levels (each level shoves the crowd back); start moving to unleash a wide arc toward where you're heading. Level 3 cleaves everything, with hit-stop.
-- **Dual Blades — never stop moving.** Full-deflection movement builds momentum: a faster, wider blade whirl, more speed, and damaging afterimages at 100%. Whip the stick back (>150°) at high momentum for a **dash cut**.
+- **Thumb 1 (move stick): your movement is your combo input.** Every weapon attacks on its own, shaped by how you move.
+- **Thumb 2 (gesture pad): moves you choose.** Tap, swipe and hold each fire a move you pick before the hunt. Level-ups unlock **shape gestures** (draw a circle, V, zigzag or triangle) with more moves, and level up the moves you have. Any move fired in the last moment before Ironhorn's telegraphed attack would hit you is a **PERFECT counter**: the attack is cancelled and the move hits 1.5× harder.
 
-The Musou layer adds officers whose deaths rout their squads, three capturable outposts, a screen-clearing Musou attack, and a big KO counter.
+| Weapon | Movement mechanic (thumb 1) | Default gestures (tap / swipe / hold) |
+|---|---|---|
+| **Great Sword** | Stand still to charge three levels (each level shoves the crowd back); move to unleash an arc toward your heading. | Tackle (keeps charge) / Aimed Unleash (release toward the swipe without moving) / Overhead Slam |
+| **Dual Blades** | Full deflection builds momentum (wider whirl, speed, afterimages); whip the stick back for a dash cut. | Flurry / Dash Cut (any direction) / Shadow Step |
+| **Bulwark** (sword & shield) | Walk or stand to raise the shield: frontal hits are blocked and charge an automatic counter-bash; standing still, it tracks the nearest foe. Running lowers it. | Guard Counter / Shield Charge / Shield Wall (hold to block all sides, release to blast) |
+| **Hand Cannon** (pistol) | Auto-fires at the nearest target (Ironhorn's nearest unbroken part when close). Stand still to steady: faster, harder, piercing shots. | Ricochet / Fan the Hammer / Called Shot |
+| **Twin Fangs** (dual pistols) | Moving, both guns fire to your sides at foes on each flank: aim by choosing where you run. Snap-turn for a bullet ring. | Bullet Spin / Slide Shot / Barrage |
+| **Assault Rifle** | A continuous stream that spins up while there's something to shoot; rakes along your heading, locks on when you stand still. | Piercing Burst / Grenade / Suppressive Fire |
+
+Each weapon has 4–5 moves of its own plus two shared ones (Dodge Roll, Call Lightning); see `weapons.*.moves` and `moves.shared` in `data/tuning.json`.
+
+The crowd layer adds officers whose deaths rout their squads, three capturable outposts, and a big KO counter.
 
 ## Run it
 
@@ -19,15 +30,15 @@ Desktop controls (touch is emulated with the mouse):
 
 | Action | Touch (iPhone) | Desktop |
 |---|---|---|
-| Move | Touch anywhere in the lower 70% and drag (floating stick) | WASD / arrows, or mouse-drag |
-| Musou | Big button, bottom corner (left/right in settings) | Space |
+| Move | Touch anywhere in the lower 70% of the **stick half** (left by default) and drag (floating stick) | WASD / arrows, or mouse-drag on the left half |
+| Gesture moves | Anywhere on the **other half** (below the HUD): tap, swipe, hold (drag while holding to aim), or draw a circle / V / zigzag / triangle | J tap, K swipe, L hold, 1 circle, 2 V, 3 zigzag, 4 triangle (aimed along your facing); mouse-draw on the right half |
 | Pause | Top-left button | Esc |
 
-There are no other inputs; attacks are automatic and shaped by how you move.
+Pause → Settings → **Move Stick: Left/Right** swaps the halves. Gesture chips (bottom corner of the gesture half) show what's bound and each cooldown; the move name flashes where you drew.
 
 ## Run flow
 
-Title → Weapon Select → Hunt → Results. The monster arrives at 2:00, enrages at 9:00 (or below 30% HP), and escapes at 10:00 (hunt failed). Best KOs and fastest hunt per weapon are saved to `user://save.json`.
+Title → Weapon Select → **Loadout** (tap a gesture row to cycle its move; saved per weapon) → Hunt → Results. The monster arrives at 2:00, enrages at 9:00 (or below 30% HP), and escapes at 10:00 (hunt failed). Best KOs and fastest hunt per weapon are saved to `user://save.json`.
 
 ## Tuning
 
@@ -39,9 +50,9 @@ Top 5 knobs to playtest first:
 2. **`enemies.hp_growth_per_min`** — how fast the crowd toughens vs. your build (HP multiplier is `1 + 0.8 × minutes`, so ×8.2 by 9:00).
 3. **`monster.max_hp`** + **`monster.parts.*.break_hp`** — length of the Ironhorn fight and how often parts break.
 4. **`weapons.great_sword.thresholds`** (+ `planted_damage_mult`, `brace`) and **`weapons.dual_blades.build_time` / `decay_per_sec`** — how each weapon's movement mechanic feels.
-5. **`musou.max`**, **`enemies.types.*.ko_musou`**, **`musou.recharge_lock`** — how often the screen-clear fires.
+5. **`gestures.*`** (recognizer thresholds, `perfect_window` / `perfect_mult`) and **`weapons.*.moves[*].cooldown`** — how forgiving the second thumb is and how often moves fire.
 
-Also handy: `xp.curve_*` (level pace), `camera.zoom`, `controls.dead_zone` / `full_speed_at`, `outposts.*`, `juice.*`, `haptics_ms.*`.
+Also handy: `moves.level_damage` / `level_cooldown` / `shape_unlock_min_level`, `weapons.*.magnet_mult` (guns get a bigger XP magnet because they kill far away), `xp.curve_*` (level pace), `camera.zoom`, `controls.dead_zone` / `full_speed_at`, `outposts.*`, `juice.*`, `haptics_ms.*`.
 
 ## Swapping in real art
 
@@ -51,7 +62,7 @@ To replace art without touching code, create **`art/manifest.json`** (see `art/m
 
 ```json
 {
-  "enemy.grunt":            { "path": "res://art/grunt.png", "size": [38, 38] },
+  "enemy.grunt":            { "path": "res://art/grunt.png", "size": [48, 48] },
   "monster.ironhorn.horns": { "path": "res://art/ironhorn_horns.png" },
   "fx.slash_gs3":           { "tint": "#fff6e0" }
 }
@@ -72,12 +83,12 @@ tools/run_checks.sh            # everything below, fails on any test failure or 
 | Step | Command |
 |---|---|
 | Compile every script | `godot --headless --path . res://tools/check_scripts.tscn` |
-| Unit tests (47) | `godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn` |
-| Smoke run, both weapons, 60 s bot play | `godot --headless --path . --fixed-fps 60 res://tests/smoke.tscn -- seconds=60` |
+| Unit tests (80; `-- only=test_moves` runs one file) | `godot --headless --path . --fixed-fps 60 res://tests/test_runner.tscn` |
+| Smoke run, all six weapons, 60 s bot play (bot uses gestures too) | `godot --headless --path . --fixed-fps 60 res://tests/smoke.tscn -- seconds=60` |
 | Benchmark (500 / 1k / 1.5k / 2k enemies) | `godot --headless --path . --fixed-fps 60 res://scenes/benchmark.tscn` |
-| Screen flow (title → … → results) | `godot --headless --path . --fixed-fps 60 res://tools/flow_check.tscn` |
+| Screen flow (title → weapon → loadout → hunt → results) | `godot --headless --path . --fixed-fps 60 res://tools/flow_check.tscn` |
 
-Smoke options: `seconds=600 god=1 arrive=10 weapons=dual_blades seed=3`. With a display you can also capture screenshots: `godot --path . --fixed-fps 60 res://tools/shot.tscn -- weapon=dual_blades frames=300,900 out=/tmp/shots`.
+Smoke options: `seconds=600 god=1 arrive=10 weapons=pistol,dual_blades seed=3`. With a display you can also capture screenshots: `godot --path . --fixed-fps 60 res://tools/shot.tscn -- weapon=dual_blades frames=300,900 out=/tmp/shots`.
 
 If you add a script with a new `class_name`, run `godot --headless --path . --import` once so the class cache picks it up (`run_checks.sh` does this).
 
@@ -118,17 +129,19 @@ data/tuning.json         every balance number
 autoload/                Tuning, ArtRegistry, GameState (settings, safe area), Save
 systems/                 EnemySystem, FlowField, SpatialHash, Spawner, XPSystem, Progression,
                          UpgradePool, FX, Particles, DamageNumbers, GroundPatches, BotInput, Geom,
-                         HuntContext (the API weapons/monster use)
-player/                  Player, weapons/ (GreatSword, DualBlades), subweapons/ (Orbit, Thunder, Flame)
-monster/                 Ironhorn (state machine, telegraphs, breakable parts)
-musou/                   Outposts, MusouGauge (officers/rout live in EnemySystem + Hunt)
-ui/                      HUD, TouchStick, LevelUpUI, PauseMenu, Title, WeaponSelect, Results, UIKit
+                         Outposts, GestureRecognizer, HuntContext (the API weapons/monster use)
+player/                  Player, MoveSet (gesture -> move bindings, levels, cooldowns),
+                         weapons/ (GreatSword, DualBlades, SwordShield, Pistol, DualPistols,
+                         AssaultRifle, WeaponFactory), subweapons/ (Orbit, Thunder, Flame)
+monster/                 Ironhorn (state machine, telegraphs, breakable parts, counter window)
+ui/                      HUD, TouchStick, GesturePad, LevelUpUI, PauseMenu, Title, WeaponSelect,
+                         Loadout, Results, UIKit
 scenes/                  hunt.tscn (one run, orchestrates all systems), benchmark.tscn
 tests/                   test runner + unit tests, smoke run, FakeHunt
 tools/                   run_checks.sh, script checker, flow check, screenshots, icon generator
 ```
 
-The swarm is data-oriented: enemies are rows in packed arrays rendered with one `MultiMeshInstance2D` per type. `scenes/hunt.gd` runs every system explicitly each frame in a fixed order (input → player → weapons → flow field → swarm → monster → outposts → XP → spawner → timeline → FX → camera → HUD), which keeps timing deterministic and measurable.
+The swarm is data-oriented: enemies are rows in packed arrays rendered with one `MultiMeshInstance2D` per type. `scenes/hunt.gd` runs every system explicitly each frame in a fixed order (input → gestures → player → weapons → flow field → swarm → monster → outposts → XP → spawner → timeline → FX → camera → HUD), which keeps timing deterministic and measurable.
 
 ## Known gaps
 

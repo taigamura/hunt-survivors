@@ -2,14 +2,13 @@ extends Node
 ## Visual check: runs a bot-driven hunt and saves screenshots at given frames.
 ## Usage (needs a display; e.g. xvfb-run):
 ##   godot --path . --rendering-method gl_compatibility --fixed-fps 60 res://tools/shot.tscn -- \
-##       weapon=dual_blades frames=300,900 out=/tmp/shots arrive=20 seed=3 musou_at=600
+##       weapon=dual_blades frames=300,900 out=/tmp/shots arrive=20 seed=3 fill=800@200
 
 var hunt: Hunt
 var frames: PackedInt32Array = [300]
 var out_dir: String = "user://shots"
 var frame: int = 0
 var weapon: String = "great_sword"
-var musou_at: int = -1
 var fill_at: int = -1
 var fill_n: int = 0
 
@@ -33,8 +32,6 @@ func _ready() -> void:
 				cfg["arrive_time"] = float(kv[1])
 			"seed":
 				cfg["seed"] = int(kv[1])
-			"musou_at":
-				musou_at = int(kv[1])
 			"fill":
 				var p := kv[1].split("@")
 				fill_n = int(p[0])
@@ -50,9 +47,6 @@ func _ready() -> void:
 
 func _process(_d: float) -> void:
 	frame += 1
-	if frame == musou_at:
-		hunt.musou.value = hunt.musou.max_value
-		hunt.request_musou()
 	if frame == fill_at:
 		hunt.fill_enemies(fill_n)
 	if frame in frames:

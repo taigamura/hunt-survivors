@@ -1,5 +1,5 @@
 extends Node
-## End-to-end screen flow: Title -> Weapon Select -> Hunt -> (forced win) -> Results -> Title.
+## End-to-end screen flow: Title -> Weapon Select -> Loadout -> Hunt -> (forced win) -> Results.
 ## Presses the real buttons. Works headless:
 ##   godot --headless --path . res://tools/flow_check.tscn
 
@@ -18,12 +18,21 @@ func _ready() -> void:
 	await _frames(10)
 	_expect_scene("weapon_select")
 	_press("Card_dual_blades")
+	await _frames(10)
+	_expect_scene("loadout")
+	_press("Row_tap")  # cycle the tap move once; the hunt must use the new choice
+	await _frames(2)
+	var want := String(Save.loadout_for("dual_blades").get("tap", ""))
+	var chosen := String((get_tree().current_scene.get("loadout") as Dictionary).get("tap", ""))
+	_press("StartHunt")
 	await _frames(20)
 	_expect_scene("hunt")
 	var hunt := get_tree().current_scene as Hunt
 	if hunt != null:
 		if hunt.weapon_id != "dual_blades":
 			failures.append("hunt started with %s" % hunt.weapon_id)
+		if chosen == want or hunt.moves.move_for("tap") != chosen:
+			failures.append("loadout not applied: chose %s, hunt has %s" % [chosen, hunt.moves.move_for("tap")])
 		await _frames(60)
 		if hunt.run_time <= 0.5:
 			failures.append("hunt did not run")

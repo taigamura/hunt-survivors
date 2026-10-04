@@ -16,7 +16,6 @@ const STRIDE := 12  # 2D transform (8) + color (4)
 
 const CAUSE_WEAPON := 0
 const CAUSE_MONSTER := 1
-const CAUSE_MUSOU := 2
 
 var cap: int = 2000
 
@@ -46,12 +45,12 @@ var t_hp := PackedFloat32Array()
 var t_contact := PackedFloat32Array()
 var t_xp := PackedInt32Array()
 var t_mass := PackedFloat32Array()
-var t_musou := PackedFloat32Array()
 var t_size: Array[Vector2] = []
 var t_rotate: Array[bool] = []
 var t_tint: Array[Color] = []
 
 var hp_mult: float = 1.0
+var last_contact_pos: Vector2 = Vector2.ZERO
 var speed_mult: float = 1.0
 var target: Vector2 = Vector2.ZERO
 var despawn_dist_sq: float = 1900.0 * 1900.0
@@ -128,7 +127,6 @@ func setup(p_field: FlowField, p_cap: int = -1) -> void:
 	t_contact.resize(N_TYPES)
 	t_xp.resize(N_TYPES)
 	t_mass.resize(N_TYPES)
-	t_musou.resize(N_TYPES)
 	t_size.clear()
 	t_rotate.clear()
 	t_tint.clear()
@@ -140,7 +138,6 @@ func setup(p_field: FlowField, p_cap: int = -1) -> void:
 		t_contact[t] = Tuning.f(key + ".contact")
 		t_xp[t] = Tuning.i(key + ".xp")
 		t_mass[t] = Tuning.f(key + ".mass", 1.0)
-		t_musou[t] = Tuning.f(key + ".ko_musou", 1.0)
 		var art_id := "enemy." + TYPE_NAMES[t]
 		t_size.append(ArtRegistry.size(art_id))
 		t_rotate.append(ArtRegistry.rotates(art_id))
@@ -344,16 +341,19 @@ func count_in_circle(c: Vector2, r: float) -> int:
 
 
 ## Highest contact damage among non-fleeing enemies touching a circle (the player).
+## `last_contact_pos` is where that enemy stands (shields block by direction).
 func contact_damage(c: Vector2, r: float) -> float:
 	var best := 0.0
+	last_contact_pos = c
 	var pad := r + 24.0
 	for i in hash.candidates(Rect2(c.x - pad, c.y - pad, pad * 2.0, pad * 2.0)):
 		if slot[i] < 0 or flee[i] > 0.0:
 			continue
 		var t := etype[i]
 		var rr := r + t_radius[t]
-		if pos[i].distance_squared_to(c) <= rr * rr:
-			best = maxf(best, t_contact[t])
+		if pos[i].distance_squared_to(c) <= rr * rr and t_contact[t] > best:
+			best = t_contact[t]
+			last_contact_pos = pos[i]
 	return best
 
 

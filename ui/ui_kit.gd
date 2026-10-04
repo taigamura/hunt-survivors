@@ -82,3 +82,43 @@ static func fmt_int(n: int) -> String:
 		out = "," + s.substr(s.length() - 3) + out
 		s = s.substr(0, s.length() - 3)
 	return ("-" if n < 0 else "") + s + out
+
+
+## Line icon for a gesture kind (tap, swipe, hold, circle, v, zigzag, triangle), centered at c
+## with half-size s. Used by the HUD chips and the loadout screen.
+static func draw_glyph(ci: CanvasItem, kind: String, c: Vector2, s: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	match kind:
+		"tap":
+			ci.draw_circle(c, s * 0.35, col)
+			return
+		"hold":
+			ci.draw_circle(c, s * 0.3, col)
+			ci.draw_arc(c, s * 0.75, 0.0, TAU, 24, col, 2.5)
+			return
+		"circle":
+			ci.draw_arc(c, s * 0.8, -PI * 0.3, TAU - PI * 0.6, 28, col, 3.0)
+			return
+		"swipe":
+			pts = PackedVector2Array([Vector2(-0.9, 0), Vector2(0.9, 0), Vector2(0.45, -0.4), Vector2(0.9, 0), Vector2(0.45, 0.4)])
+		"v":
+			pts = PackedVector2Array([Vector2(-0.75, -0.6), Vector2(0, 0.65), Vector2(0.75, -0.6)])
+		"zigzag":
+			pts = PackedVector2Array([Vector2(-0.75, -0.6), Vector2(0.75, -0.6), Vector2(-0.75, 0.6), Vector2(0.75, 0.6)])
+		"triangle":
+			pts = PackedVector2Array([Vector2(0, -0.75), Vector2(0.8, 0.6), Vector2(-0.8, 0.6), Vector2(0, -0.75)])
+	var out := PackedVector2Array()
+	for p in pts:
+		out.append(c + p * s)
+	if out.size() >= 2:
+		ci.draw_polyline(out, col, 3.0, true)
+
+
+## A Control that draws one gesture glyph.
+class Glyph:
+	extends Control
+	var kind: String = "tap"
+	var color: Color = Color.WHITE
+
+	func _draw() -> void:
+		UIKit.draw_glyph(self, kind, size * 0.5, minf(size.x, size.y) * 0.42, color)

@@ -1,5 +1,6 @@
 extends Control
-## Two big weapon cards, each with a one-line description of its movement mechanic.
+## Six weapon cards in a 2-column grid, each with a one-line description of its movement
+## mechanic. Picking one goes to the gesture loadout screen.
 
 
 func _ready() -> void:
@@ -9,13 +10,18 @@ func _ready() -> void:
 	add_child(m)
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_theme_constant_override("separation", 26)
+	v.add_theme_constant_override("separation", 20)
 	m.add_child(v)
 	v.add_child(UIKit.label("CHOOSE YOUR WEAPON", 46, "ui.accent"))
-	v.add_child(UIKit.label("Your movement is your combo.", 24, "ui.text_dim"))
+	v.add_child(UIKit.label("Move with one thumb. Fight with the other.", 24, "ui.text_dim"))
 
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	v.add_child(grid)
 	for w in GameState.WEAPONS:
-		v.add_child(_card(w))
+		grid.add_child(_card(w))
 
 	var back := UIKit.button("Back", 30, false, 84)
 	back.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://ui/title.tscn"))
@@ -24,35 +30,36 @@ func _ready() -> void:
 
 func _card(w: String) -> Button:
 	var cfg := Tuning.d("weapons." + w)
-	var b := UIKit.button("", 30, false, 300)
+	var b := UIKit.button("", 30, false, 290)
 	b.name = "Card_" + w
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var vb := VBoxContainer.new()
 	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vb.offset_left = 30
-	vb.offset_right = -30
-	vb.offset_top = 22
-	vb.offset_bottom = -22
-	vb.add_theme_constant_override("separation", 10)
+	vb.offset_left = 14
+	vb.offset_right = -14
+	vb.offset_top = 14
+	vb.offset_bottom = -14
+	vb.add_theme_constant_override("separation", 6)
 	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := WeaponIcon.new()
 	icon.weapon = w
-	icon.custom_minimum_size = Vector2(0, 90)
+	icon.custom_minimum_size = Vector2(0, 70)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(icon)
-	var nm := UIKit.label(String(cfg.get("name", w)).to_upper(), 44, "ui.text")
+	var nm := UIKit.label(String(cfg.get("name", w)).to_upper(), 30, "ui.text")
 	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(nm)
-	var tag := UIKit.label(String(cfg.get("tagline", "")), 26, "ui.accent2", HORIZONTAL_ALIGNMENT_CENTER, true)
+	var tag := UIKit.label(String(cfg.get("tagline", "")), 19, "ui.accent2", HORIZONTAL_ALIGNMENT_CENTER, true)
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(tag)
 	var best := Save.best_for(w)
-	var bl := UIKit.label("Best: %s KOs" % UIKit.fmt_int(int(best["kos"])), 22, "ui.text_dim")
+	var bl := UIKit.label("Best: %s KOs" % UIKit.fmt_int(int(best["kos"])), 18, "ui.text_dim")
 	bl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(bl)
 	b.add_child(vb)
 	b.pressed.connect(func() -> void:
 		GameState.selected_weapon = w
-		get_tree().change_scene_to_file("res://scenes/hunt.tscn"))
+		get_tree().change_scene_to_file("res://ui/loadout.tscn"))
 	return b
 
 
@@ -68,6 +75,38 @@ class WeaponIcon:
 		var c := size * 0.5
 		var t := Time.get_ticks_msec() / 1000.0
 		var pc := ArtRegistry.tint("player.body")
+		var tr := ArtRegistry.color("fx.tracer")
+		if weapon == "sword_shield":
+			var a := sin(t * 2.0) * 0.6
+			draw_arc(c, 30, a - 1.2, a + 1.2, 20, ArtRegistry.color("fx.shield"), 7.0)
+			draw_circle(c, 14, pc)
+			if fmod(t, 1.2) < 0.15:
+				draw_colored_polygon(FX.pie(c, Vector2.from_angle(a), 60, 0.6), ArtRegistry.color("fx.swipe"))
+			return
+		if weapon == "pistol":
+			var steady := clampf(fmod(t, 2.0), 0.0, 1.0)
+			draw_arc(c, 26, -PI * 0.5, -PI * 0.5 + TAU * steady, 24, ArtRegistry.color("fx.gold"), 5.0)
+			draw_circle(c, 14, pc)
+			if fmod(t, 0.4) < 0.08:
+				draw_line(c + Vector2(18, 0), c + Vector2(size.x * 0.45, -6), tr, 4.0)
+			return
+		if weapon == "dual_pistols":
+			var x := fmod(t * 140.0, size.x + 60.0) - 30.0
+			var p := Vector2(x, c.y)
+			draw_circle(p, 14, pc)
+			if fmod(t, 0.2) < 0.08:
+				draw_line(p + Vector2(0, -18), p + Vector2(8, -size.y * 0.45), tr, 3.0)
+				draw_line(p + Vector2(0, 18), p + Vector2(8, size.y * 0.45), tr, 3.0)
+			return
+		if weapon == "assault_rifle":
+			draw_circle(c, 14, pc)
+			for k in 4:
+				var ph := fmod(t * 6.0 + k * 0.25, 1.0)
+				var y := sin(k * 7.3 + floor(t * 6.0)) * 10.0
+				var cc := tr
+				cc.a *= 1.0 - ph
+				draw_line(c + Vector2(20 + ph * 80.0, y * ph), c + Vector2(40 + ph * 120.0, y * ph * 1.5), cc, 3.0)
+			return
 		if weapon == "great_sword":
 			var phase := fmod(t, 2.4)
 			var charge := clampf(phase / 1.5, 0.0, 1.0)

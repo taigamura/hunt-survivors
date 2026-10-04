@@ -2,6 +2,8 @@ class_name GreatSword
 extends Weapon
 ## "Plant your feet." Standing still charges 3 levels; starting to move releases
 ## a wide arc toward the movement direction. A weak swipe ticks while moving.
+## Gesture moves: Aimed Unleash (release toward a swipe without moving), Tackle (keeps and adds
+## charge), Overhead Slam, Whirlwind (360 release), Fissure.
 
 var thresholds: Array[float] = [0.4, 0.9, 1.5]
 var levels: Array = []
@@ -86,8 +88,7 @@ func update(dt: float, move: Vector2) -> void:
 			var lvl := charge_level()
 			if lvl >= 1:
 				release(lvl, move.normalized())
-				var retain := up_value("gs_retain")
-				charge_time = charge_time * retain if retain > 0.0 else 0.0
+				_spend_charge()
 			else:
 				charge_time = 0.0
 			_last_level_seen = charge_level()
@@ -98,12 +99,18 @@ func update(dt: float, move: Vector2) -> void:
 	was_moving = moving
 
 
-func release(lvl: int, dir: Vector2) -> void:
+func _spend_charge() -> void:
+	var retain := up_value("gs_retain")
+	charge_time = charge_time * retain if retain > 0.0 else 0.0
+	_last_level_seen = charge_level()
+
+
+func release(lvl: int, dir: Vector2, power: float = 1.0) -> void:
 	var cfg: Dictionary = levels[lvl - 1]
 	var arc_bonus := 1.0 + up_value("gs_arc")
 	var r := float(cfg["radius"]) * player.area_mult * arc_bonus
 	var half := minf(deg_to_rad(float(cfg["half_angle_deg"])) * arc_bonus, PI * 0.95)
-	var damage := dmg(float(cfg["damage"]))
+	var damage := dmg(float(cfg["damage"])) * power
 	var flags := HuntContext.HIT_BIG if lvl >= 2 else HuntContext.HIT_NONE
 	hunt.hit_arc(player.position, dir, r, half, damage, float(cfg["knock"]), flags)
 	hunt.fx_over.arc(player.position, dir, r, half, "fx.slash_gs%d" % lvl, 0.16 + 0.05 * lvl)
@@ -124,6 +131,74 @@ func release(lvl: int, dir: Vector2) -> void:
 	releases += 1
 	last_release_level = lvl
 	last_release_dir = dir
+
+
+func perform_move(move_id: String, def: Dictionary, ctx: Dictionary) -> bool:
+	var dir: Vector2 = ctx["dir"]
+	var power := float(ctx["power"])
+	match move_id:
+		"gs_aimed":
+			var lvl := charge_level()
+			if lvl >= 1:
+				release(lvl, dir, power)
+				_spend_charge()
+			else:
+				var r := float(def["uncharged_radius"]) * player.area_mult
+				var half := deg_to_rad(float(def["uncharged_half_angle_deg"]))
+				hunt.hit_arc(player.position, dir, r, half, move_dmg(def, "uncharged_damage", ctx), float(def["knock"]))
+				hunt.fx_over.arc(player.position, dir, r, half, "fx.slash_gs1", 0.16)
+			player.facing = dir
+			return true
+		"gs_tackle":
+			var dist := float(def["distance"])
+			var a := player.position
+			var dur := float(def["duration"])
+			player.start_dash(dir, dist, dur)
+			player.iframes = maxf(player.iframes, dur + 0.1)
+			hunt.hit_line(a, a + dir * dist, float(def["width"]) * player.area_mult, move_dmg(def, "damage", ctx), float(def["knock"]))
+			hunt.fx_over.line(a, a + dir * dist, 30.0, "fx.swipe", 0.2)
+			hunt.add_shake(0.2)
+			charge_time += float(def["charge_add"]) / player.haste_mult
+			return true
+		"gs_slam":
+			var lvl := charge_level()
+			var p := target_point(ctx, float(def["reach"]))
+			var r := (float(def["radius"]) + float(def["radius_per_level"]) * lvl) * player.area_mult
+			var d := dmg(float(def["damage"]) + float(def["damage_per_level"]) * lvl) * power
+			hunt.hit_circle(p, r, d, float(def["knock"]), HuntContext.HIT_BIG)
+			hunt.fx_over.circle(p, r, "fx.slash_gs%d" % maxi(1, lvl), 0.25)
+			hunt.fx_over.ring(p, r, "fx.shockwave", 0.3, 12.0, 0.5)
+			hunt.fx_over.line(player.position, p, 26.0, "fx.slash_gs%d" % maxi(1, lvl), 0.15)
+			hunt.add_shake(0.25 + 0.2 * lvl)
+			if lvl >= 3:
+				hunt.hitstop(int(levels[2].get("hitstop_ms", 0)))
+				hunt.haptic("gs_level3")
+			if lvl >= 1:
+				_spend_charge()
+			return true
+		"gs_whirl":
+			var lvl := charge_level()
+			if lvl < 1:
+				return false
+			var cfg: Dictionary = levels[lvl - 1]
+			var r := float(cfg["radius"]) * player.area_mult * (1.0 + up_value("gs_arc")) * float(def["radius_frac"])
+			var d := dmg(float(cfg["damage"])) * float(def["damage_frac"]) * power
+			hunt.hit_circle(player.position, r, d, float(cfg["knock"]), HuntContext.HIT_BIG)
+			hunt.fx_over.arc(player.position, player.facing, r, PI, "fx.slash_gs%d" % lvl, 0.25)
+			hunt.fx_over.ring(player.position, r, "fx.slash_gs%d" % lvl, 0.3, 10.0, 0.3)
+			hunt.add_shake(float(cfg["shake"]))
+			player.iframes = maxf(player.iframes, release_iframes)
+			_spend_charge()
+			return true
+		"gs_quake":
+			var r := float(def["radius"]) * player.area_mult
+			for k in int(def["count"]):
+				var p := player.position + dir * float(def["spacing"]) * (k + 1)
+				hunt.hit_circle(p, r, move_dmg(def, "damage", ctx), float(def["knock"]))
+				hunt.fx_under.circle(p, r, "fx.shockwave", 0.3 + 0.05 * k)
+			hunt.add_shake(0.35)
+			return true
+	return super.perform_move(move_id, def, ctx)
 
 
 func _do_swipe(dir: Vector2) -> void:

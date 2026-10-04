@@ -18,7 +18,6 @@ var area_mult: float = 1.0
 var haste_mult: float = 1.0  ## >1 = faster attacks (divide cooldowns)
 var speed_mult: float = 1.0
 var magnet_mult: float = 1.0
-var musou_mult: float = 1.0
 var regen: float = 0.0
 var bonus_hp: float = 0.0
 

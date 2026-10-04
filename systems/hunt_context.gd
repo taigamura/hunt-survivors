@@ -27,6 +27,34 @@ func hit_line(a: Vector2, b: Vector2, w: float, dmg: float, knock: float, flags:
 	return 0
 
 
+## Hitscan round from `a` along unit `dir`: hits the nearest `pierce` enemies within `reach`
+## (the monster stops it). Returns where the round stopped, for the tracer.
+func shoot(a: Vector2, dir: Vector2, reach: float, width: float, dmg: float, knock: float, pierce: int, flags: int = 0) -> Vector2:
+	return a + dir * reach
+
+
+## Auto-aim point: the monster's nearest unbroken part if it is within range, else the
+## nearest swarm enemy, else Vector2.INF.
+func auto_target(from: Vector2, max_range: float) -> Vector2:
+	return Vector2.INF
+
+
+## Nearest target inside a pie slice (monster aim point included), or Vector2.INF.
+func nearest_in_arc(from: Vector2, max_range: float, dir: Vector2, half: float) -> Vector2:
+	return Vector2.INF
+
+
+## Up to n enemy positions for a ricochet: nearest to `from`, then nearest to each previous
+## hit within `hop` (no repeats).
+func chain_targets(from: Vector2, n: int, first_range: float, hop: float) -> PackedVector2Array:
+	return PackedVector2Array()
+
+
+## Level of an owned sub-weapon (0 = not owned).
+func sub_level(sub_id: String) -> int:
+	return 0
+
+
 ## Multiplier from passives and captured outposts.
 func damage_mult() -> float:
 	return 1.0

@@ -1,16 +1,22 @@
 extends Node
 ## Headless test runner. Runs every tests/test_*.gd (classes extending TestCase),
 ## calling each method whose name starts with "test_".
-##   godot --headless --path . res://tests/test_runner.tscn
+##   godot --headless --path . res://tests/test_runner.tscn [-- only=test_gestures]
 ## Exit code 0 = all passed.
 
 func _ready() -> void:
+	var only := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("only="):
+			only = a.substr(5)
 	var total := 0
 	var failed := 0
 	var files := DirAccess.get_files_at("res://tests")
 	files.sort()
 	for f in files:
 		if not (f.begins_with("test_") and f.ends_with(".gd")) or f == "test_runner.gd" or f == "test_case.gd":
+			continue
+		if only != "" and f.get_basename() != only:
 			continue
 		var script: GDScript = load("res://tests/" + f)
 		if script == null or not script.can_instantiate():

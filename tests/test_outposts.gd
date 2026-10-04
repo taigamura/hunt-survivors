@@ -1,5 +1,5 @@
 extends TestCase
-## Outposts capture/decay/effects, Musou gauge, and a full Musou blast inside a real Hunt.
+## Outposts: capture, decay and effects.
 
 
 func test_outpost_capture_and_decay() -> void:
@@ -40,56 +40,3 @@ func test_outpost_effects() -> void:
 	assert_near(o.spawn_mult_at(Vector2(500, 0)), o.suppress_mult, 0.0001, "suppresses spawns nearby")
 	assert_eq(o.spawn_mult_at(Vector2(-2500, 0)), 1.0, "not far away")
 	assert_gt(o.heal_rate_at(Vector2(20, 0)), 0.0, "heals inside")
-
-
-func test_musou_gauge() -> void:
-	var g := MusouGauge.new()
-	g.setup()
-	assert_false(g.trigger(), "can't fire empty")
-	g.add(g.max_value * 0.5)
-	assert_near(g.fraction(), 0.5)
-	g.add(g.max_value, 2.0)
-	assert_true(g.is_full())
-	assert_true(g.trigger())
-	assert_eq(g.value, 0.0)
-	assert_true(g.is_locked(), "recharge lock after firing")
-	g.add(50.0)
-	assert_eq(g.value, 0.0, "can't refill while locked")
-	g.tick(g.recharge_lock + 0.1)
-	g.add(50.0)
-	assert_eq(g.value, 50.0)
-
-
-func test_musou_blast_clears_the_screen() -> void:
-	var hunt := Hunt.new()
-	hunt.config = {"mode": "smoke", "weapon": "great_sword", "bot": false, "god": true, "seed": 5, "arrive_time": 1e9}
-	root.add_child(hunt)
-	hunt.spawner.enabled = false
-	hunt.fill_enemies(500)
-	hunt._process(1.0 / 60.0)
-	var vr := hunt.view_rect_world()
-	var in_view := 0
-	for k in hunt.enemies.n_active:
-		if vr.has_point(hunt.enemies.pos[hunt.enemies.active[k]]):
-			in_view += 1
-	assert_gt(in_view, 50.0, "plenty of enemies on screen")
-	var kos_before := hunt.kos
-	hunt.musou.value = hunt.musou.max_value
-	hunt.request_musou()
-	assert_gt(hunt.musou_timer, 0.0, "musou started")
-	assert_true(hunt.player.invuln, "invulnerable during musou")
-	var frames := 0
-	while hunt.musou_blasts == 0 and frames < 300:
-		hunt._process(1.0 / 60.0)
-		frames += 1
-	assert_eq(hunt.musou_blasts, 1, "blast fired")
-	assert_true(hunt.kos - kos_before >= in_view - 10, "on-screen enemies were KO'd (%d vs %d)" % [hunt.kos - kos_before, in_view])
-	var vr2 := hunt.view_rect_world()
-	var left := 0
-	for k in hunt.enemies.n_active:
-		if vr2.grow(-120).has_point(hunt.enemies.pos[hunt.enemies.active[k]]):
-			left += 1
-	assert_lt(left, 5.0, "screen is clear")
-	assert_false(hunt.player.invuln, "vulnerable again")
-	assert_lt(hunt.musou.value, 1.0, "a blast doesn't refill its own gauge")
-	Engine.time_scale = 1.0

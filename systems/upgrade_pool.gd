@@ -1,24 +1,30 @@
 class_name UpgradePool
 extends RefCounted
-## Builds level-up card options (main-weapon upgrades, sub-weapons, passives) and applies picks.
+## Builds level-up card options (main-weapon upgrades, gesture moves, sub-weapons, passives)
+## and applies picks. Gesture cards: "move" levels up a bound move; "gesture" unlocks a shape
+## gesture (circle, v, zigzag, triangle) bound to a move you don't have yet.
 
 const SUB_IDS: Array[String] = ["orbit_shards", "thunder_call", "flame_wake"]
 
 var hunt: HuntContext
 var player: Player
 var main: Weapon
+var moves: MoveSet
 var subs: Array[Weapon] = []
 var passive_levels: Dictionary = {}
 var passive_defs: Array = []
 var max_subs: int = 3
 var heal_frac: float = 0.3
+var shape_min_level: int = 3
 var picks: Array[String] = []  ## history, for tests/telemetry
 
 
-func setup(p_hunt: HuntContext, p_player: Player, p_main: Weapon) -> void:
+func setup(p_hunt: HuntContext, p_player: Player, p_main: Weapon, p_moves: MoveSet = null) -> void:
 	hunt = p_hunt
 	player = p_player
 	main = p_main
+	moves = p_moves
+	shape_min_level = Tuning.i("moves.shape_unlock_min_level", 3)
 	passive_defs = Tuning.a("passives")
 	max_subs = Tuning.i("max_subweapons", 3)
 	heal_frac = Tuning.f("fallback_heal_frac", 0.3)
@@ -46,8 +52,21 @@ func passive_level(pid: String) -> int:
 	return int(passive_levels.get(pid, 0))
 
 
-func all_options() -> Array[Dictionary]:
+## `level` gates shape-gesture cards; `rng` picks which shape/move pair is offered.
+func all_options(rng: RandomNumberGenerator = null, level: int = 99) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	if moves != null:
+		for mid in moves.upgradable_moves():
+			var md := moves.def_of(mid)
+			var cur := moves.level_of(mid)
+			out.append({"kind": "move", "id": mid, "name": String(md["name"]), "desc": "Move: +%d%% damage, %d%% faster cooldown" % [int(moves.level_damage * 100.0 + 0.5), int(moves.level_cooldown * 100.0 + 0.5)], "cur": cur, "max": moves.max_level, "weight": 0.9})
+		var shapes := moves.unbound_shapes()
+		var free_moves := moves.unbound_moves()
+		if level >= shape_min_level and not shapes.is_empty() and not free_moves.is_empty():
+			var g := shapes[rng.randi() % shapes.size()] if rng != null else shapes[0]
+			var mid := free_moves[rng.randi() % free_moves.size()] if rng != null else free_moves[0]
+			var md := moves.def_of(mid)
+			out.append({"kind": "gesture", "id": "%s:%s" % [g, mid], "gesture": g, "move": mid, "name": "%s: %s" % [MoveSet.gesture_label(g).capitalize(), String(md["name"])], "desc": "Draw a %s to %s" % [MoveSet.gesture_label(g).to_lower(), String(md["desc"]).substr(0, 1).to_lower() + String(md["desc"]).substr(1)], "cur": 0, "max": 1, "weight": 1.3})
 	for d: Dictionary in main.upgrade_defs:
 		var cur := main.up(String(d["id"]))
 		if cur < int(d["max"]):
@@ -67,8 +86,8 @@ func all_options() -> Array[Dictionary]:
 	return out
 
 
-func roll(rng: RandomNumberGenerator, n: int = 3) -> Array[Dictionary]:
-	var pool := all_options()
+func roll(rng: RandomNumberGenerator, n: int = 3, level: int = 99) -> Array[Dictionary]:
+	var pool := all_options(rng, level)
 	var picked: Array[Dictionary] = []
 	while picked.size() < n and not pool.is_empty():
 		var total := 0.0
@@ -94,6 +113,10 @@ func apply(opt: Dictionary) -> void:
 	match String(opt["kind"]):
 		"weapon":
 			main.apply_upgrade(oid)
+		"move":
+			moves.upgrade(oid)
+		"gesture":
+			moves.bind(String(opt["gesture"]), String(opt["move"]))
 		"sub":
 			var owned := sub_by_id(oid)
 			if owned != null:
@@ -124,7 +147,6 @@ func _recompute_passives() -> void:
 	player.haste_mult = 1.0 + _per_level("p_haste") * passive_level("p_haste")
 	player.speed_mult = 1.0 + _per_level("p_speed") * passive_level("p_speed")
 	player.magnet_mult = 1.0 + _per_level("p_magnet") * passive_level("p_magnet")
-	player.musou_mult = 1.0 + _per_level("p_musou") * passive_level("p_musou")
 	player.regen = _per_level("p_regen") * passive_level("p_regen")
 	player.bonus_hp = _per_level("p_hp") * passive_level("p_hp")
 	player.recompute_max_hp()
