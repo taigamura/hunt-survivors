@@ -5,3 +5,7 @@
 /android/
 export_credentials.cfg
 .DS_Store
+dist/
+eas/credentials.json
+eas/credentials/
+eas/node_modules/

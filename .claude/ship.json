@@ -1,0 +1,29 @@
+{
+  "git": {
+    "defaultBranch": "main",
+    "workflow": "direct",
+    "commitTrailers": [
+      "Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+    ]
+  },
+  "buildServer": {
+    "host": "192.168.50.175",
+    "user": "taigamura",
+    "sshKey": "~/.ssh/simple-bookkeeping-buildserver",
+    "repoPath": "(none: source is sent per build with git archive)",
+    "pathPrepend": "/usr/local/bin:/opt/homebrew/bin",
+    "logPath": "~/hunt-survivors-build.log",
+    "artifactGlob": "dist/ios/HuntSurvivors-*.ipa",
+    "runsLocally": true,
+    "buildCommand": "scripts/ship-ios-godot.sh --no-submit",
+    "note": "Godot project, same Mac and pipeline as wildbound. No git remote: commit locally (workflow direct, no push), then buildCommand runs on THIS box: it sends `git archive HEAD` to a temp dir on the Mac, copies the EAS signing credentials (eas/credentials.json, gitignored) into a throwaway keychain there, runs the Godot export + xcodebuild detached with polling, and copies the ipa back to dist/ios/. Skip the skill's push/pull/SSH/poll/scp steps."
+  },
+  "submit": {
+    "command": "IPA=$(realpath {ipa}) && cd eas && npx eas-cli@24.10.0 submit -p ios --profile production --path \"$IPA\" --non-interactive",
+    "afterSuccess": "Write the submitted build number into ios/build-number.txt (the ipa name is HuntSurvivors-<version>-<build>.ipa) and commit it with the release-log entry. Or run scripts/ship-ios-godot.sh without --no-submit, which builds, submits and bumps the file in one go."
+  },
+  "releaseLog": {
+    "file": "README.md",
+    "anchor": "- **History**"
+  }
+}

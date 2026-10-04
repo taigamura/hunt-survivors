@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Hunt Survivors",
+    "slug": "hunt-survivors",
+    "owner": "taigamura",
+    "version": "0.1.0",
+    "ios": {
+      "bundleIdentifier": "com.taiga.huntsurvivors",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "requireFullScreen": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6ab8bc80-4cf6-4abb-bbb1-cabd7e5b4733"
+      }
+    }
+  }
+}
