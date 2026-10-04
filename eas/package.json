@@ -1,5 +1,8 @@
 {
   "name": "hunt-survivors-eas",
   "private": true,
-  "description": "EAS config only: holds iOS signing credentials and runs eas submit for the Godot build"
+  "description": "EAS config only: holds iOS signing credentials and runs eas submit for the Godot build",
+  "dependencies": {
+    "expo": "~57.0.26"
+  }
 }
