@@ -1,0 +1,6 @@
+{
+  "_readme": "Copy to art/manifest.json to override placeholder art. Keys are ArtRegistry ids. Fields: path (texture), size [w,h] world px, tint (#rrggbb[aa]), rotate (bool).",
+  "enemy.grunt": { "path": "res://art/grunt.png", "size": [38, 38] },
+  "monster.ironhorn.horns": { "path": "res://art/ironhorn_horns.png" },
+  "fx.slash_gs3": { "tint": "#fff6e0" }
+}

@@ -13,7 +13,7 @@ func _ready() -> void:
 		if not (f.begins_with("test_") and f.ends_with(".gd")) or f == "test_runner.gd" or f == "test_case.gd":
 			continue
 		var script: GDScript = load("res://tests/" + f)
-		if script == null:
+		if script == null or not script.can_instantiate():
 			print("FAIL  could not load %s" % f)
 			failed += 1
 			continue

@@ -79,7 +79,7 @@ func show_options(options: Array[Dictionary], level: int) -> void:
 		var tag_l := UIKit.label(tag, 18, "ui.accent2", HORIZONTAL_ALIGNMENT_LEFT)
 		tag_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		vb.add_child(tag_l)
-		var desc_l := UIKit.label(String(o["desc"]), 24, "ui.text_dim", HORIZONTAL_ALIGNMENT_LEFT)
+		var desc_l := UIKit.label(String(o["desc"]), 24, "ui.text_dim", HORIZONTAL_ALIGNMENT_LEFT, true)
 		desc_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		vb.add_child(desc_l)
 		b.add_child(vb)

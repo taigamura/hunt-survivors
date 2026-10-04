@@ -18,7 +18,7 @@ func _ready() -> void:
 	var t2 := UIKit.label("SURVIVORS", 64, "ui.text")
 	v.add_child(t1)
 	v.add_child(t2)
-	v.add_child(UIKit.label("One thumb. One monster. A thousand foes.", 26, "ui.text_dim"))
+	v.add_child(UIKit.label("One thumb. One monster. A thousand foes.", 26, "ui.text_dim", HORIZONTAL_ALIGNMENT_CENTER, true))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 120)
 	v.add_child(gap)

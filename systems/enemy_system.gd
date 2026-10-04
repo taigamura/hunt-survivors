@@ -63,6 +63,7 @@ var rout_time: float = 2.6
 var flash_time: float = 0.07
 var direct_chase_sq: float = 4900.0
 var wobble: float = 0.45
+var look_ahead: float = 170.0
 var wobble_min_sq: float = 260.0 * 260.0
 
 var hash: SpatialHash
@@ -92,6 +93,7 @@ func setup(p_field: FlowField, p_cap: int = -1) -> void:
 	flash_time = Tuning.f("juice.flash_time", 0.07)
 	direct_chase_sq = pow(Tuning.f("flow_field.direct_chase_distance", 70.0), 2.0)
 	wobble = Tuning.f("enemies.heading_wobble", 0.45)
+	look_ahead = Tuning.f("flow_field.look_ahead", 170.0)
 	wobble_min_sq = pow(Tuning.f("enemies.wobble_min_distance", 260.0), 2.0)
 	hash = SpatialHash.new(3600.0, 80.0)
 
@@ -424,10 +426,25 @@ func step(dt: float) -> void:
 			if d2 < direct_chase_sq:
 				desired = to / sqrt(d2) if d2 > 0.01 else Vector2.ZERO
 			else:
+				var dl := sqrt(d2)
+				desired = to / dl
+				# Straight at the hunter unless the line ahead is obstructed — then follow the
+				# flow field. (Pure grid fields funnel crowds into axis-aligned lanes.)
+				var la := minf(dl, look_ahead)
+				var ax := p.x + desired.x * la * 0.45
+				var ay := p.y + desired.y * la * 0.45
+				var bx := p.x + desired.x * la
+				var by := p.y + desired.y * la
+				var g1x := int((ax - fmox) * finv)
+				var g1y := int((ay - fmoy) * finv)
+				var g2x := int((bx - fmox) * finv)
+				var g2y := int((by - fmoy) * finv)
+				var obstructed := ax < fmox or ay < fmoy or bx < fmox or by < fmoy \
+					or g1x >= fcols or g1y >= frows or g2x >= fcols or g2y >= frows \
+					or fbl[g1y * fcols + g1x] != 0 or fbl[g2y * fcols + g2x] != 0
 				var wx := int((p.x - fmox) * finv) - fx0
 				var wy := int((p.y - fmoy) * finv) - fy0
-				desired = to / sqrt(d2)
-				if wx >= 0 and wy >= 0 and wx < fwin and wy < fwin:
+				if obstructed and wx >= 0 and wy >= 0 and wx < fwin and wy < fwin:
 					var idx := wy * fwin + wx
 					if fdist[idx] > 0:
 						if fl.stamp[idx] != fver:

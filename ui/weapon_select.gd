@@ -42,7 +42,7 @@ func _card(w: String) -> Button:
 	var nm := UIKit.label(String(cfg.get("name", w)).to_upper(), 44, "ui.text")
 	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(nm)
-	var tag := UIKit.label(String(cfg.get("tagline", "")), 26, "ui.accent2")
+	var tag := UIKit.label(String(cfg.get("tagline", "")), 26, "ui.accent2", HORIZONTAL_ALIGNMENT_CENTER, true)
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(tag)
 	var best := Save.best_for(w)

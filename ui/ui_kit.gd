@@ -16,7 +16,7 @@ static func style(bg: Color, border: Color = Color(0, 0, 0, 0), border_w: int = 
 	return s
 
 
-static func label(text: String, size: int, color_id: String = "ui.text", align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER) -> Label:
+static func label(text: String, size: int, color_id: String = "ui.text", align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER, wrap: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.horizontal_alignment = align
@@ -24,7 +24,8 @@ static func label(text: String, size: int, color_id: String = "ui.text", align: 
 	l.add_theme_color_override("font_color", ArtRegistry.color(color_id))
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	l.add_theme_constant_override("outline_size", maxi(4, size / 8))
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if wrap:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return l
 
 

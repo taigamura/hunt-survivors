@@ -70,7 +70,8 @@
     "cell": 40,
     "window_cells": 84,
     "refresh_interval": 0.25,
-    "direct_chase_distance": 70
+    "direct_chase_distance": 70,
+    "look_ahead": 170
   },
 
   "spawner": {
@@ -252,7 +253,7 @@
     "aggro_range": 950,
     "attack_range": 330,
     "charge_range": 720,
-    "contact_damage": 10,
+    "contact_damage": 8,
     "recover_time": 1.0,
     "stagger_time": 1.5,
     "enrage_hp_frac": 0.3,
@@ -270,7 +271,7 @@
     "dot_damage_mult": 0.3,
     "part_break_xp": 30,
     "attacks": {
-      "charge": {"weight": 3, "telegraph": 0.9, "speed": 980, "distance": 900, "width": 80, "damage": 26, "broken_mult": 0.6},
+      "charge": {"weight": 3, "telegraph": 0.9, "speed": 980, "distance": 900, "width": 80, "damage": 22, "broken_mult": 0.6},
       "sweep":  {"weight": 3, "telegraph": 0.75, "radius": 235, "arc_deg": 270, "damage": 20},
       "roar":   {"weight": 2, "telegraph": 0.8, "radius": 390, "damage": 8, "slow_time": 1.6, "spawn_count": 30}
     }

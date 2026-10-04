@@ -22,6 +22,11 @@ func _ready() -> void:
 
 # ---------------------------------------------------------------- public API
 
+## Re-applies a manifest file (used by tests; the game loads res://art/manifest.json at startup).
+func apply_manifest(path: String) -> void:
+	_apply_manifest(path)
+
+
 func has_id(id: String) -> bool:
 	return entries.has(id)
 
@@ -77,13 +82,15 @@ func _put_color(id: String, c: Color) -> void:
 	entries[id] = {"texture": null, "tint": c, "size": Vector2.ZERO, "rotate": false}
 
 
-func _apply_manifest() -> void:
-	if not FileAccess.file_exists(MANIFEST):
+func _apply_manifest(path: String = MANIFEST) -> void:
+	if not FileAccess.file_exists(path):
 		return
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not (parsed is Dictionary):
 		return
 	for id: String in (parsed as Dictionary):
+		if not (parsed[id] is Dictionary):
+			continue  # e.g. "_readme"
 		var spec: Dictionary = parsed[id]
 		var e: Dictionary = entries.get(id, {"texture": null, "tint": Color.WHITE, "size": Vector2(16, 16), "rotate": false}).duplicate()
 		if spec.has("path"):
