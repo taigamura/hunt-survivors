@@ -60,6 +60,9 @@ func _process(_d: float) -> void:
 		var img := get_viewport().get_texture().get_image()
 		var path := out_dir.path_join("%s_%05d.png" % [weapon, frame])
 		img.save_png(path)
+		for mmi in hunt.enemies._mm:
+			var mm := mmi.multimesh
+			print("  mm vis=%d count=%d aabb=%s tex=%s visible=%s" % [mm.visible_instance_count, mm.instance_count, str(RenderingServer.multimesh_get_aabb(mm.get_rid())), mmi.texture, mmi.is_visible_in_tree()])
 		print("saved ", path, "  kos=", hunt.kos, " foes=", hunt.enemies.n_active, " lvl=", hunt.progression.level, " t=", "%.1f" % hunt.run_time)
 	if frame >= frames[frames.size() - 1] + 2:
 		get_tree().quit()

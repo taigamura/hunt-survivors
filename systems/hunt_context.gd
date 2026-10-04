@@ -6,6 +6,7 @@ extends Node2D
 const HIT_NONE := 0
 const HIT_BIG := 1        ## always show a damage number
 const HIT_NO_MONSTER := 2 ## don't apply to the monster
+const HIT_DOT := 4        ## lingering ground damage (reduced against the monster)
 
 var player: Player
 var enemies: EnemySystem
@@ -77,3 +78,8 @@ func on_monster_died(at: Vector2) -> void:
 
 func is_blocked(p: Vector2) -> bool:
 	return false
+
+
+## Path-aware direction toward `to` (flow field). Default: straight line.
+func steer_dir(from: Vector2, to: Vector2) -> Vector2:
+	return (to - from).normalized()

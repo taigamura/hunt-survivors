@@ -109,29 +109,29 @@ func _build_placeholders() -> void:
 	# --- player
 	_put("player.body", _paint(64, func(p: Vector2) -> float:
 		return minf(_sd_circle(p, Vector2(30, 32), 22.0), _sd_poly(p, [Vector2(62, 32), Vector2(40, 18), Vector2(40, 46)])), 3.0),
-		Color(0.92, 0.98, 1.0), Vector2(40, 40), true)
+		Color(0.92, 0.98, 1.0), Vector2(46, 46), true)
 
 	# --- swarm (white fill, tinted per instance)
 	_put("enemy.grunt", _paint(48, func(p: Vector2) -> float:
 		return _sd_poly(p, [Vector2(44, 24), Vector2(8, 6), Vector2(16, 24), Vector2(8, 42)]), 3.5),
-		Color(0.93, 0.33, 0.30), Vector2(30, 30), true)
+		Color(0.93, 0.33, 0.30), Vector2(38, 38), true)
 	_put("enemy.runner", _paint(48, func(p: Vector2) -> float:
 		return _sd_poly(p, [Vector2(46, 24), Vector2(4, 12), Vector2(14, 24), Vector2(4, 36)]), 3.5),
-		Color(1.0, 0.62, 0.22), Vector2(28, 22), true)
+		Color(1.0, 0.62, 0.22), Vector2(36, 28), true)
 	_put("enemy.brute", _paint(48, func(p: Vector2) -> float:
 		return minf(_sd_box(p, Vector2(22, 24), Vector2(15, 17), 5.0), _sd_box(p, Vector2(40, 24), Vector2(5, 13), 2.0)), 3.5),
-		Color(0.72, 0.42, 0.95), Vector2(44, 44), true)
+		Color(0.72, 0.42, 0.95), Vector2(54, 54), true)
 	_put("enemy.officer", _paint(64, func(p: Vector2) -> float:
 		var body := _sd_circle(p, Vector2(30, 42), 17.0)
 		var pole := _sd_box(p, Vector2(44, 25), Vector2(2.5, 19), 1.0)
 		var flag := _sd_poly(p, [Vector2(46, 6), Vector2(62, 12), Vector2(46, 19)])
 		return minf(body, minf(pole, flag)), 3.0),
-		Color(1.0, 0.82, 0.25), Vector2(62, 62), false)
+		Color(1.0, 0.82, 0.25), Vector2(76, 76), false)
 
 	# --- pickups
 	_put("xp.gem", _paint(32, func(p: Vector2) -> float:
 		return _sd_poly(p, [Vector2(16, 2), Vector2(29, 16), Vector2(16, 30), Vector2(3, 16)]), 2.5),
-		Color(0.35, 0.95, 0.85), Vector2(13, 13), false)
+		Color(0.35, 0.95, 0.85), Vector2(16, 16), false)
 	_put_color("xp.tier0", Color(0.35, 0.95, 0.85))
 	_put_color("xp.tier1", Color(0.4, 0.65, 1.0))
 	_put_color("xp.tier2", Color(1.0, 0.45, 0.85))

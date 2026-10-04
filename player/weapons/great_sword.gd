@@ -7,6 +7,9 @@ var thresholds: Array[float] = [0.4, 0.9, 1.5]
 var levels: Array = []
 var swipe: Dictionary = {}
 var shockwave: Dictionary = {}
+var brace: Dictionary = {}
+var planted_mult: float = 0.6
+var release_iframes: float = 0.3
 
 var charge_time: float = 0.0
 var was_moving: bool = false
@@ -34,7 +37,10 @@ func setup(p_hunt: HuntContext, p_player: Player) -> void:
 	levels = cfg["levels"]
 	swipe = cfg["swipe"]
 	shockwave = cfg["shockwave"]
+	brace = cfg.get("brace", {})
 	upgrade_defs = cfg["upgrades"]
+	planted_mult = float(cfg.get("planted_damage_mult", 0.6))
+	release_iframes = float(cfg.get("release_iframes", 0.3))
 	swipe_timer = float(swipe["interval"])
 
 
@@ -51,6 +57,11 @@ func charge_level() -> int:
 	return lvl
 
 
+## Planted stance: standing still to charge also braces you.
+func damage_taken_mult() -> float:
+	return planted_mult if not was_moving else 1.0
+
+
 func charge_fraction() -> float:
 	return clampf(charge_time / threshold(3), 0.0, 1.0)
 
@@ -62,8 +73,12 @@ func update(dt: float, move: Vector2) -> void:
 		var lvl := charge_level()
 		if lvl > _last_level_seen:
 			_last_level_seen = lvl
-			# level-up glow pulse
+			# level-up glow pulse + brace shove (keeps the crowd off you while you charge)
 			hunt.fx_over.ring(player.position, 34.0 + lvl * 8.0, "fx.charge%d" % lvl, 0.25, 4.0 + lvl * 2.0, 0.6)
+			if not brace.is_empty():
+				var br := (float(brace["radius"]) + float(brace["radius_per_level"]) * lvl) * player.area_mult
+				hunt.hit_circle(player.position, br, dmg(float(brace["damage"]) * lvl), float(brace["knock"]) + float(brace["knock_per_level"]) * lvl)
+				hunt.fx_over.ring(player.position, br, "fx.charge%d" % lvl, 0.2, 6.0, 0.5)
 			if lvl == 3:
 				hunt.haptic("gs_level3")
 	else:
@@ -104,6 +119,8 @@ func release(lvl: int, dir: Vector2) -> void:
 			var sd := damage * float(shockwave["damage_frac"]) * (1.0 + up_value("gs_shockwave") - 0.5)
 			hunt.hit_circle(player.position, sr, sd, float(shockwave["knock"]), HuntContext.HIT_BIG)
 			hunt.fx_over.ring(player.position, sr, "fx.shockwave", 0.4, 16.0, 0.7)
+	# a committed release is a brief moment of invulnerability
+	player.iframes = maxf(player.iframes, release_iframes)
 	releases += 1
 	last_release_level = lvl
 	last_release_dir = dir

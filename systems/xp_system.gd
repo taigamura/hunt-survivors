@@ -41,6 +41,7 @@ func setup(p_cap: int = -1) -> void:
 	mm.mesh = EnemySystem._unit_quad()
 	mm.instance_count = cap
 	mm.visible_instance_count = 0
+	mm.custom_aabb = AABB(Vector3(-5000, -5000, -1), Vector3(10000, 10000, 2))
 	_mmi = MultiMeshInstance2D.new()
 	_mmi.multimesh = mm
 	_mmi.texture = ArtRegistry.tex("xp.gem")

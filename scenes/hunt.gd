@@ -90,6 +90,7 @@ var _dead_zone: float = 0.12
 var _full_at: float = 0.6
 var _kill_shake: float = 0.04
 var _death_particles: int = 3
+var _dot_monster_mult: float = 0.3
 
 
 func _ready() -> void:
@@ -110,9 +111,10 @@ func _ready() -> void:
 	_full_at = Tuning.f("controls.full_speed_at", 0.6)
 	_kill_shake = Tuning.f("juice.kill_shake", 0.04)
 	_death_particles = Tuning.i("juice.death_particles", 3)
+	_dot_monster_mult = Tuning.f("monster.dot_damage_mult", 0.3)
 	_milestones = Tuning.a("ko_milestones")
 	if bool(config.get("bot", mode != "play")):
-		bot = BotInput.new(int(config.get("seed", 1)) + 7)
+		bot = BotInput.new(int(config.get("seed", 1)) + 7, weapon_id)
 	_build_world()
 	_build_ui()
 
@@ -348,6 +350,7 @@ func _process(delta: float) -> void:
 		progression.add_xp(got)
 		max_level = progression.level
 
+	musou.tick(dt)
 	if musou_timer > 0.0:
 		_musou_tick(dt)
 
@@ -383,8 +386,7 @@ func _gather_input(dt: float) -> Vector2:
 	if input_override.is_valid():
 		return input_override.call(dt)
 	if bot != null:
-		var threat := monster.position if monster != null and monster.is_alive() else Vector2.INF
-		return bot.next(dt, player.position, map_rect, threat)
+		return bot.next(dt, self)
 	var kb := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
 		kb.x -= 1.0
@@ -523,6 +525,8 @@ func _show_number(p: Vector2, dmg: float, big: bool) -> void:
 func _hit_monster(shape: int, a: Vector2, b: Vector2, r: float, dir: Vector2, half: float, dmg: float, flags: int) -> void:
 	if monster == null or (flags & HIT_NO_MONSTER) != 0 or not monster.is_alive():
 		return
+	if (flags & HIT_DOT) != 0:
+		dmg *= _dot_monster_mult
 	var dealt := monster.take_hit(shape, a, b, r, dir, half, dmg)
 	if dealt > 0.0 and (dmg >= 20.0 or _monster_num_clock > 0.1):
 		_monster_num_clock = 0.0
@@ -624,6 +628,7 @@ func kill_enemies_in_circle(c: Vector2, r: float, cause: int) -> int:
 func damage_player(amount: float, from: Vector2) -> bool:
 	if god or ended:
 		return false
+	amount *= main_weapon.damage_taken_mult()
 	if not player.take_damage(amount):
 		return false
 	hud.hurt()
@@ -650,6 +655,12 @@ func spawn_grunts_around(c: Vector2, n: int, min_r: float, max_r: float) -> void
 
 func is_blocked(p: Vector2) -> bool:
 	return field.is_blocked(p)
+
+
+func steer_dir(from: Vector2, to: Vector2) -> Vector2:
+	if from.distance_squared_to(to) < 250.0 * 250.0:
+		return (to - from).normalized()
+	return field.sample(from)
 
 
 # =============================================================== events

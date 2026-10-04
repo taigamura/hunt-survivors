@@ -46,7 +46,7 @@ var t_hp := PackedFloat32Array()
 var t_contact := PackedFloat32Array()
 var t_xp := PackedInt32Array()
 var t_mass := PackedFloat32Array()
-var t_musou := PackedInt32Array()
+var t_musou := PackedFloat32Array()
 var t_size: Array[Vector2] = []
 var t_rotate: Array[bool] = []
 var t_tint: Array[Color] = []
@@ -138,7 +138,7 @@ func setup(p_field: FlowField, p_cap: int = -1) -> void:
 		t_contact[t] = Tuning.f(key + ".contact")
 		t_xp[t] = Tuning.i(key + ".xp")
 		t_mass[t] = Tuning.f(key + ".mass", 1.0)
-		t_musou[t] = Tuning.i(key + ".ko_musou", 1)
+		t_musou[t] = Tuning.f(key + ".ko_musou", 1.0)
 		var art_id := "enemy." + TYPE_NAMES[t]
 		t_size.append(ArtRegistry.size(art_id))
 		t_rotate.append(ArtRegistry.rotates(art_id))
@@ -161,6 +161,8 @@ func _build_render() -> void:
 		mm.mesh = quad
 		mm.instance_count = cap
 		mm.visible_instance_count = 0
+		# Fixed bounds: skips per-frame AABB recompute and avoids stale-AABB culling.
+		mm.custom_aabb = AABB(Vector3(-5000, -5000, -1), Vector3(10000, 10000, 2))
 		var node := MultiMeshInstance2D.new()
 		node.multimesh = mm
 		node.texture = ArtRegistry.tex("enemy." + TYPE_NAMES[t])

@@ -39,7 +39,7 @@
     "radius": 15,
     "speed": 215,
     "max_hp": 120,
-    "iframes": 0.45,
+    "iframes": 0.5,
     "pickup_radius": 26,
     "magnet_radius": 120,
     "roar_slow_mult": 0.5,
@@ -56,13 +56,13 @@
     "wobble_min_distance": 260,
     "flee_speed_mult": 1.5,
     "rout_time": 2.6,
-    "hp_growth_per_min": 0.35,
+    "hp_growth_per_min": 0.8,
     "speed_growth_per_min": 0.03,
     "types": {
-      "grunt":   {"hp": 9,   "speed": 72,  "radius": 12, "contact": 6,  "xp": 1,  "mass": 1.0, "ko_musou": 1},
-      "runner":  {"hp": 6,   "speed": 128, "radius": 10, "contact": 5,  "xp": 1,  "mass": 0.7, "ko_musou": 1},
-      "brute":   {"hp": 48,  "speed": 52,  "radius": 18, "contact": 12, "xp": 4,  "mass": 3.0, "ko_musou": 3},
-      "officer": {"hp": 220, "speed": 82,  "radius": 24, "contact": 14, "xp": 20, "mass": 5.0, "ko_musou": 20}
+      "grunt":   {"hp": 8,   "speed": 72,  "radius": 12, "contact": 4,  "xp": 1,  "mass": 1.0, "ko_musou": 0.25},
+      "runner":  {"hp": 6,   "speed": 128, "radius": 10, "contact": 4,  "xp": 1,  "mass": 0.7, "ko_musou": 0.25},
+      "brute":   {"hp": 48,  "speed": 52,  "radius": 18, "contact": 11, "xp": 4,  "mass": 3.0, "ko_musou": 1.0},
+      "officer": {"hp": 220, "speed": 82,  "radius": 24, "contact": 14, "xp": 20, "mass": 5.0, "ko_musou": 10}
     }
   },
 
@@ -96,16 +96,17 @@
     "gem_cap": 400,
     "pull_speed": 520,
     "pull_accel": 1400,
-    "curve_base": 6,
-    "curve_linear": 3.6,
-    "curve_quadratic": 0.32,
+    "curve_base": 8,
+    "curve_linear": 5.0,
+    "curve_quadratic": 0.5,
     "tier_values": [3, 10]
   },
 
   "musou": {
     "max": 300,
-    "gain_officer_bonus": 15,
-    "gain_part_break": 60,
+    "gain_officer_bonus": 30,
+    "gain_part_break": 80,
+    "recharge_lock": 20,
     "duration": 1.5,
     "slowmo_scale": 0.25,
     "slowmo_real_sec": 0.45,
@@ -150,12 +151,15 @@
       "name": "Great Sword",
       "tagline": "Plant your feet. Stand still to charge, move to unleash.",
       "thresholds": [0.4, 0.9, 1.5],
+      "planted_damage_mult": 0.5,
+      "release_iframes": 0.3,
       "levels": [
-        {"half_angle_deg": 55,  "radius": 125, "damage": 16, "knock": 260, "shake": 0.25, "hitstop_ms": 0},
+        {"half_angle_deg": 65,  "radius": 140, "damage": 16, "knock": 280, "shake": 0.25, "hitstop_ms": 0},
         {"half_angle_deg": 75,  "radius": 175, "damage": 34, "knock": 380, "shake": 0.45, "hitstop_ms": 0},
         {"half_angle_deg": 100, "radius": 245, "damage": 80, "knock": 620, "shake": 0.85, "hitstop_ms": 60}
       ],
-      "swipe": {"interval": 1.2, "half_angle_deg": 32, "radius": 88, "damage": 6, "knock": 110},
+      "swipe": {"interval": 1.2, "half_angle_deg": 35, "radius": 100, "damage": 8, "knock": 120},
+      "brace": {"radius": 62, "radius_per_level": 14, "damage": 3, "knock": 200, "knock_per_level": 70},
       "shockwave": {"radius": 330, "damage_frac": 0.45, "knock": 420},
       "upgrades": [
         {"id": "gs_charge",    "name": "Quick Grip",    "max": 3, "per_level": 0.15, "desc": "Charge thresholds 15% faster"},
@@ -172,7 +176,7 @@
       "decay_per_sec": 1.6,
       "high_deflection": 0.8,
       "speed_bonus": 0.18,
-      "whirl": {"interval_min": 0.11, "interval_max": 0.32, "radius_min": 46, "radius_max": 102, "damage_min": 3, "damage_max": 8, "knock": 80},
+      "whirl": {"interval_min": 0.11, "interval_max": 0.32, "radius_min": 46, "radius_max": 102, "damage_min": 3, "damage_max": 7, "knock": 80},
       "trail": {"drop_interval": 0.05, "life": 0.4, "radius": 26, "damage": 4, "tick": 0.15, "min_momentum": 1.0},
       "dash": {"min_momentum": 0.55, "reverse_deg": 150, "distance": 230, "duration": 0.12, "width": 42, "damage": 30, "knock": 320, "cooldown": 0.6, "grace": 0.22},
       "upgrades": [
@@ -241,7 +245,7 @@
 
   "monster": {
     "name": "IRONHORN",
-    "max_hp": 7200,
+    "max_hp": 14000,
     "body_radius": 86,
     "speed": 150,
     "turn_rate": 2.6,
@@ -263,6 +267,7 @@
       "tail":  {"offset": [-190, 0], "radius": 44, "break_hp": 800,  "sprite_offset": [-170, 0]}
     },
     "back_break_damage_mult": 1.25,
+    "dot_damage_mult": 0.3,
     "part_break_xp": 30,
     "attacks": {
       "charge": {"weight": 3, "telegraph": 0.9, "speed": 980, "distance": 900, "width": 80, "damage": 26, "broken_mult": 0.6},

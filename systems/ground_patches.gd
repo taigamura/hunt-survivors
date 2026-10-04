@@ -52,7 +52,7 @@ func update(dt: float, hunt: HuntContext, flags: int = 0) -> void:
 	if _tick_timer <= 0.0:
 		_tick_timer = tick
 		for j in ppos.size():
-			hits_total += hunt.hit_circle(ppos[j], prad[j], pdmg[j], 0.0, flags)
+			hits_total += hunt.hit_circle(ppos[j], prad[j], pdmg[j], 0.0, flags | HuntContext.HIT_DOT)
 
 
 func draw_flames(ci: CanvasItem) -> void:

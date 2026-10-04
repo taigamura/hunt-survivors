@@ -52,5 +52,10 @@ func draw_world_under(ci: CanvasItem) -> void:
 	pass
 
 
+## Multiplier on damage the hunter takes (Great Sword's planted stance reduces it).
+func damage_taken_mult() -> float:
+	return 1.0
+
+
 func dmg(base: float) -> float:
 	return base * hunt.damage_mult()

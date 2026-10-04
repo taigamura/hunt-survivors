@@ -228,7 +228,11 @@ func _draw_musou_button() -> void:
 	draw_arc(c, r, 0.0, TAU, 48, Color(1, 1, 1, 0.15), 8.0)
 	draw_arc(c, r, -PI * 0.5, -PI * 0.5 + TAU * gauge.fraction(), 48, col, 8.0)
 	var tc := Color(1, 1, 1) if full else Color(1, 1, 1, 0.5)
-	_text(c + Vector2(0, 10), "MUSOU" if not active else "!!!", 26, tc)
+	if gauge.is_locked() and not active:
+		_text(c + Vector2(0, 2), "MUSOU", 22, Color(1, 1, 1, 0.35))
+		_text(c + Vector2(0, 30), "%ds" % ceili(gauge.lock_timer), 22, Color(1, 1, 1, 0.5))
+	else:
+		_text(c + Vector2(0, 10), "MUSOU" if not active else "!!!", 26, tc)
 
 
 func _vignette(sz: Vector2, c: Color) -> void:

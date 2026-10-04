@@ -150,7 +150,9 @@ func update(dt: float) -> void:
 			if dist < float(cfg["aggro_range"]) or state_time > 6.0:
 				_set_state(State.PURSUE)
 		State.PURSUE:
-			_move_toward(player.position, _speed(), dt)
+			var sd := hunt.steer_dir(position, player.position)
+			_turn_toward(sd, dt)
+			position += facing * _speed() * dt
 			if attack_cd <= 0.0:
 				var choice := _choose_attack(dist)
 				if choice != "":
