@@ -4,12 +4,25 @@ Portrait, one-thumb survivors-like for iPhone, built in **Godot 4.7.2** (GDScrip
 
 `README.md` is the player/dev manual (controls, tuning knobs, art swapping, verify commands, project layout). `DECISIONS.md` records every design judgment call, `PERF.md` the benchmark. Read those before changing gameplay; this file is the current state and the working rules.
 
-## Current state (2026-10-04)
+## Current state (updated 2026-10-04)
 
 - **Playable prototype, feature-complete for the brief.** Title → Weapon Select → Hunt → Results. Two weapons with movement-driven combos (Great Sword: stand still to charge, move to release; Dual Blades: keep moving for momentum, whip the stick back for a dash cut). Musou layer: squads with officers whose deaths rout them, 3 capturable outposts, screen-clearing Musou attack, KO counter. Boss: **Ironhorn** arrives at 2:00, enrages at 9:00 or below 30% HP, escapes at 10:00 (hunt failed); horns, tail and back break separately. Three subweapons (Orbit Shards, Thunder Call, Flame Wake) plus passives via level-up cards. Best KOs / fastest hunt saved per weapon.
 - **On TestFlight:** v0.1.0 build 1, uploaded 2026-10-04 (App Store Connect app `6819005826`). The owner is in the internal "Team (Expo)" group, which gets every new build automatically. Not submitted for App Store review; no store listing yet.
 - **Not yet played on a real iPhone.** Balance comes from bot telemetry (`systems/bot_input.gd`), not human playtests. Device perf is unmeasured; the debug build shows an fps / enemy-count line above the XP bar.
 - **Known gaps:** no audio; placeholder procedural art (monster is stacked shapes); no human balance pass.
+
+## Where we left off / next steps
+
+Last session (2026-10-04) took the prototype from "Xcode project export only" to a live TestFlight build: real bundle id + team, the Mac build pipeline, the EAS project, the first upload, then pushed the repo to GitHub. Nothing is half-done in the working tree.
+
+Open, in rough priority order (none started):
+1. **First on-device playtest** of 0.1.0 (1) via TestFlight: check feel of both weapons, the touch stick, safe-area layout, and fps / enemy count at swarm peak (the 1,500-enemy target has never run on an iPhone).
+2. **Balance from human play**: start with the top-5 knobs in `README.md` → Tuning (`data/tuning.json`).
+3. **Audio** (none exists).
+4. **Real art** via `art/manifest.json` (placeholders are procedural).
+5. Before any App Store release: store listing, privacy policy, screenshots; the Mobile renderer requires an A12+ device (iPhone XS or newer), so settle device requirements before the first public release.
+
+**Keep this file current:** when a session changes what the game does, ships a build, or finishes/starts one of the items above, update "Current state" and this section in the same commit.
 
 ## Architecture in one paragraph
 
