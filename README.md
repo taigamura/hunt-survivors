@@ -103,10 +103,11 @@ The export is portrait-only and includes the procedurally generated placeholder 
 
 Same Mac build server and pipeline as wildbound. `scripts/ship-ios-godot.sh` (also what `/ship-ios` runs via `.claude/ship.json`) sends the committed `HEAD` to the Mac with `git archive`, imports the signing credentials into a throwaway keychain there, has Godot 4.7.2 write the Xcode project from the `iOS` preset, runs `xcodebuild archive` + `-exportArchive` (`ios/mac-build.sh`), copies the ipa to `dist/ios/`, and uploads it with `eas submit`.
 
-- **Identity:** bundle ID `com.taiga.huntsurvivors`, Apple team `6R43H3SA48`, EAS project `@taigamura/hunt-survivors` (config only, in `eas/`). Version: `application/short_version` in `export_presets.cfg`. Build number: `ios/build-number.txt` holds the last build uploaded; the script builds with +1 and writes it back only after a confirmed submit.
+- **Identity:** bundle ID `com.taiga.huntsurvivors`, Apple team `6R43H3SA48`, EAS project `@taigamura/hunt-survivors` (config only, in `eas/`), App Store Connect app ID `6819005826`. Version: `application/short_version` in `export_presets.cfg`. Build number: `ios/build-number.txt` holds the last build uploaded; the script builds with +1 and writes it back only after a confirmed submit.
 - **Credentials** live on EAS. Download a local copy once (and after any renewal): `cd eas && npx eas-cli@24.10.0 credentials -p ios` → production → credentials.json → Download. That writes `eas/credentials.json` + `eas/credentials/` (gitignored).
 - Flags: `--no-submit`, `--unsigned` (no credentials; proves Godot + Xcode compile), `--sync-local` (build the uncommitted tree; test only), `--build-number N`.
 - **History** (newest first):
+  - 2026-10-04: v0.1.0 build 1 (local Mac build via `scripts/ship-ios-godot.sh`, commit `a22b9f0`, submission `88435005`) uploaded to TestFlight. First upload: `eas submit` registered the bundle ID, created the App Store Connect app (ID `6819005826`, now pinned as `ascAppId` in `eas/eas.json`) and the "Team (Expo)" TestFlight group.
   - 2026-10-04: pipeline set up; unsigned Mac build verified (Godot export + `xcodebuild archive` OK).
 
 ## Project layout
