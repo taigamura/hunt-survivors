@@ -16,7 +16,7 @@
     "artifactGlob": "dist/ios/HuntSurvivors-*.ipa",
     "runsLocally": true,
     "buildCommand": "scripts/ship-ios-godot.sh --no-submit",
-    "note": "Godot project, same Mac and pipeline as wildbound. No git remote: commit locally (workflow direct, no push), then buildCommand runs on THIS box: it sends `git archive HEAD` to a temp dir on the Mac, copies the EAS signing credentials (eas/credentials.json, gitignored) into a throwaway keychain there, runs the Godot export + xcodebuild detached with polling, and copies the ipa back to dist/ios/. Skip the skill's push/pull/SSH/poll/scp steps."
+    "note": "Godot project, same Mac and pipeline as wildbound. Commit and push straight to main on github.com/taigamura/hunt-survivors (workflow direct), then buildCommand runs on THIS box: it sends `git archive HEAD` to a temp dir on the Mac, copies the EAS signing credentials (eas/credentials.json, gitignored) into a throwaway keychain there, runs the Godot export + xcodebuild detached with polling, and copies the ipa back to dist/ios/. Skip the skill's push/pull/SSH/poll/scp steps."
   },
   "submit": {
     "command": "IPA=$(realpath {ipa}) && cd eas && npx eas-cli@24.10.0 submit -p ios --profile production --path \"$IPA\" --non-interactive",

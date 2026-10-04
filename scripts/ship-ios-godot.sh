@@ -16,7 +16,7 @@
 # number uploaded to App Store Connect; this script uses +1 and, only after a
 # successful submit, writes the new number back. The caller commits that file.
 #
-# Source: this repo has no git remote, so the committed HEAD is sent with `git archive`
+# Source: the committed HEAD is sent with `git archive` (the Mac needs no checkout)
 # (uncommitted changes are never in a submitted build).
 #
 # Credentials (never committed): eas/credentials.json + eas/credentials/ios/*, as
