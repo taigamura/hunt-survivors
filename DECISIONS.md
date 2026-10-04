@@ -4,8 +4,8 @@ One line each: choices made where the brief was ambiguous or silent.
 
 - Engine pinned to Godot 4.7.2 (latest stable at build time); project uses only core features, so later 4.x patch releases should open it unchanged.
 - Godot 4.7 ships a native `VirtualJoystick` class, so the floating stick is named `TouchStick` to avoid the clash.
-- `bundle id com.example.huntsurvivors` is a placeholder — **must be changed** to your own reverse-DNS id before signing; App Store Team ID is intentionally left blank.
-- iOS preset is "Export Project only" (Xcode project), no device signing attempted, per the brief.
+- iOS identity: bundle id `com.taiga.huntsurvivors`, team `6R43H3SA48` (originally placeholders; set 2026-10-04 for the first TestFlight upload).
+- iOS preset is "Export Project only" (Xcode project); signing and `xcodebuild` are done by `ios/mac-build.sh` on the Mac build server, not by Godot.
 - Enemy types: grunt, runner (fast/fragile, from ~1:00), brute (tanky, from ~2:30), officer (squad leader); only the officer does not rotate so its banner stays upright.
 - Squad soldiers routed by an officer's death count as KOs immediately (Musou-style), drop XP where they stood, then flee and despawn; killing a fleeing soldier later does not double-count.
 - Musou kills never refill the Musou gauge, and the gauge is locked for 20 s after a Musou; without both, a full screen of KOs instantly re-filled it and chained Musous forever.
